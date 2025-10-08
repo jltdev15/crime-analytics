@@ -1,0 +1,308 @@
+[
+  {
+    "crimeCount": 62,
+    "barangay": "SANTA CRUZ",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 17700,
+    "crimeRatePer1000": 3.5
+  },
+  {
+    "crimeCount": 50,
+    "barangay": "SAN ROQUE DAU",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 12955,
+    "crimeRatePer1000": 3.9
+  },
+  {
+    "crimeCount": 30,
+    "barangay": "LOURDES",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 7084,
+    "crimeRatePer1000": 4.2
+  },
+  {
+    "crimeCount": 23,
+    "barangay": "SAN NICOLAS 1ST",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1860,
+    "crimeRatePer1000": 12.4
+  },
+  {
+    "crimeCount": 23,
+    "barangay": "SANTO TOMAS",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 5983,
+    "crimeRatePer1000": 3.8
+  },
+  {
+    "crimeCount": 23,
+    "barangay": "CONCEPCION",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 8473,
+    "crimeRatePer1000": 2.7
+  },
+  {
+    "crimeCount": 20,
+    "barangay": "SAN FRANCISCO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 5643,
+    "crimeRatePer1000": 3.5
+  },
+  {
+    "crimeCount": 19,
+    "barangay": "SANTA LUCIA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2535,
+    "crimeRatePer1000": 7.5
+  },
+  {
+    "crimeCount": 13,
+    "barangay": "SAN ISIDRO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4197,
+    "crimeRatePer1000": 3.1
+  },
+  {
+    "crimeCount": 12,
+    "barangay": "SANTA CATALINA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 5648,
+    "crimeRatePer1000": 2.1
+  },
+  {
+    "crimeCount": 9,
+    "barangay": "CALANGAIN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2975,
+    "crimeRatePer1000": 3
+  },
+  {
+    "crimeCount": 9,
+    "barangay": "SAN MIGUEL",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2940,
+    "crimeRatePer1000": 3.1
+  },
+  {
+    "crimeCount": 8,
+    "barangay": "SANTA MONICA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 6006,
+    "crimeRatePer1000": 1.3
+  },
+  {
+    "crimeCount": 7,
+    "barangay": "PRADO SIONGCO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4440,
+    "crimeRatePer1000": 1.6
+  },
+  {
+    "crimeCount": 7,
+    "barangay": "SANTO NIÑO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 3852,
+    "crimeRatePer1000": 1.8
+  },
+  {
+    "crimeCount": 6,
+    "barangay": "SANTA RITA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2956,
+    "crimeRatePer1000": 2
+  },
+  {
+    "crimeCount": 6,
+    "barangay": "SANTA BARBARA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2120,
+    "crimeRatePer1000": 2.8
+  },
+  {
+    "crimeCount": 5,
+    "barangay": "BANCAL PUGAD",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1374,
+    "crimeRatePer1000": 3.6
+  },
+  {
+    "crimeCount": 5,
+    "barangay": "SANTA TERESA 2ND",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4255,
+    "crimeRatePer1000": 1.2
+  },
+  {
+    "crimeCount": 5,
+    "barangay": "BARUYA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4425,
+    "crimeRatePer1000": 1.1
+  },
+  {
+    "crimeCount": 5,
+    "barangay": "SAN PABLO 2ND",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4340,
+    "crimeRatePer1000": 1.2
+  },
+  {
+    "crimeCount": 4,
+    "barangay": "SAN MATIAS",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1369,
+    "crimeRatePer1000": 2.9
+  },
+  {
+    "crimeCount": 4,
+    "barangay": "SANTA TERESA 1ST",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 3606,
+    "crimeRatePer1000": 1.1
+  },
+  {
+    "crimeCount": 4,
+    "barangay": "SAN AGUSTIN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2796,
+    "crimeRatePer1000": 1.4
+  },
+  {
+    "crimeCount": 4,
+    "barangay": "BALANTACAN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2492,
+    "crimeRatePer1000": 1.6
+  },
+  {
+    "crimeCount": 4,
+    "barangay": "SAN PABLO 1ST",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1575,
+    "crimeRatePer1000": 2.5
+  },
+  {
+    "crimeCount": 3,
+    "barangay": "SANTA MARIA",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1698,
+    "crimeRatePer1000": 1.8
+  },
+  {
+    "crimeCount": 3,
+    "barangay": "SAN ANTONIO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 3127,
+    "crimeRatePer1000": 1
+  },
+  {
+    "crimeCount": 3,
+    "barangay": "DEL CARMEN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 2312,
+    "crimeRatePer1000": 1.3
+  },
+  {
+    "crimeCount": 3,
+    "barangay": "SAN PEDRO PALCARANGAN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4002,
+    "crimeRatePer1000": 0.7
+  },
+  {
+    "crimeCount": 2,
+    "barangay": "SAN VICENTE",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 1391,
+    "crimeRatePer1000": 1.4
+  },
+  {
+    "crimeCount": 2,
+    "barangay": "SAN JOSE APUNAN",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4197,
+    "crimeRatePer1000": 0.5
+  },
+  {
+    "crimeCount": 2,
+    "barangay": "SANTO DOMINGO",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 4525,
+    "crimeRatePer1000": 0.4
+  },
+  {
+    "crimeCount": 2,
+    "barangay": "SAN NICOLAS 2ND",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "country": "PHILIPPINES",
+    "population": 3242,
+    "crimeRatePer1000": 0.6
+  }
+]
