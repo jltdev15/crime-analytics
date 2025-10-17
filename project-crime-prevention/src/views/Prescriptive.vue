@@ -41,7 +41,7 @@
               </span>
             </div>
             <p class="mt-4 text-4xl font-semibold text-gray-900">{{ totalRecommendations }}</p>
-            <p class="mt-1 text-sm text-gray-500">Action items</p>
+            <p class="mt-1 text-sm text-gray-500">Total recommendations</p>
           </div>
 
           <!-- High Priority -->
@@ -281,6 +281,128 @@
         </div>
       </div>
     </main>
+
+    <!-- Recommendation Details Modal -->
+    <div v-if="selectedRecommendation" 
+         @click.self="closeModal"
+         @keydown.esc="closeModal"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div @click.stop class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-2xl font-bold text-gray-900">Recommendation Details</h3>
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Modal Content -->
+          <div class="space-y-6">
+            <!-- Title and Status -->
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <h4 class="text-xl font-semibold text-gray-900 mb-2">{{ selectedRecommendation.title }}</h4>
+                <div class="flex items-center gap-3">
+                  <span :class="getPriorityBadgeClass(selectedRecommendation.priority)" 
+                        class="px-3 py-1 text-sm font-semibold rounded-full">
+                    {{ selectedRecommendation.priority }}
+                  </span>
+                  <span :class="getStatusBadgeClass(selectedRecommendation.status)" 
+                        class="px-3 py-1 text-sm font-semibold rounded-full">
+                    {{ selectedRecommendation.status }}
+                  </span>
+                  <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800">
+                    {{ Math.round(selectedRecommendation.confidence * 100) }}% Confidence
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <h5 class="text-lg font-semibold text-gray-900 mb-2">Description</h5>
+              <p class="text-gray-700 leading-relaxed">{{ selectedRecommendation.description }}</p>
+            </div>
+
+            <!-- Key Information Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-3">Implementation Details</h5>
+                <div class="space-y-3">
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Category:</span>
+                    <span class="ml-2 text-sm text-gray-600 capitalize">{{ selectedRecommendation.category }}</span>
+                  </div>
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Cost:</span>
+                    <span class="ml-2 text-sm text-gray-600">{{ selectedRecommendation.implementationCost }}</span>
+                  </div>
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Timeframe:</span>
+                    <span class="ml-2 text-sm text-gray-600">{{ selectedRecommendation.timeframe }}</span>
+                  </div>
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Created:</span>
+                    <span class="ml-2 text-sm text-gray-600">{{ formatDate(selectedRecommendation.createdAt) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h5 class="text-lg font-semibold text-gray-900 mb-3">Impact & Rationale</h5>
+                <div class="space-y-3">
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Expected Impact:</span>
+                    <p class="text-sm text-gray-600 mt-1">{{ selectedRecommendation.expectedImpact }}</p>
+                  </div>
+                  <div>
+                    <span class="text-sm font-medium text-gray-700">Rationale:</span>
+                    <p class="text-sm text-gray-600 mt-1">{{ selectedRecommendation.rationale }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Success Metrics -->
+            <div v-if="selectedRecommendation.successMetrics && Array.isArray(selectedRecommendation.successMetrics) && selectedRecommendation.successMetrics.length > 0">
+              <h5 class="text-lg font-semibold text-gray-900 mb-3">Success Metrics</h5>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="metric in selectedRecommendation.successMetrics" :key="metric" 
+                      class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                  {{ metric }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center justify-between pt-6 border-t border-gray-200">
+              <div class="text-sm text-gray-500">
+                Last updated: {{ formatDate(selectedRecommendation.updatedAt || selectedRecommendation.createdAt) }}
+              </div>
+              <div class="flex gap-3">
+                <button v-if="selectedRecommendation.status === 'pending'" 
+                        @click="updateStatus(selectedRecommendation._id, 'approved')" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                  Approve
+                </button>
+                <button v-if="selectedRecommendation.status === 'approved'" 
+                        @click="updateStatus(selectedRecommendation._id, 'implemented')" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  Mark Implemented
+                </button>
+                <button @click="closeModal" 
+                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -301,6 +423,7 @@ const loading = ref(false)
 const recommendations = ref<any[]>([])
 const totalRecommendations = ref(0)
 const lastUpdated = ref('')
+const selectedRecommendation = ref<any>(null)
 
 const priorityCounts = reactive({
   high: 0,
@@ -373,8 +496,17 @@ const fetchRecommendations = async () => {
         return acc.concat(curr.recommendations || []);
       }, []) || [];
 
-      // Derive totals and pagination
-      totalRecommendations.value = recommendations.value.length
+      // Get total recommendation count from a separate call
+      try {
+        const totalResponse = await axios.get(`${API_BASE}/predict/recommendations`, { 
+          params: { page: 1, limit: 1 } // Just get the total count
+        })
+        totalRecommendations.value = totalResponse.data.pagination?.total || 0
+      } catch (error) {
+        console.error('Error getting total recommendations count:', error)
+        totalRecommendations.value = recommendations.value.length
+      }
+      
       Object.assign(pagination, response.data.pagination || { page: 1, limit: 10, total: 0, pages: 0 })
       calculateCounts()
       lastUpdated.value = new Date().toLocaleDateString()
@@ -441,14 +573,19 @@ const updateStatus = async (id: string, status: string) => {
   try {
     await axios.put(`${API_BASE}/predict/recommendations/${id}`, { status })
     await fetchRecommendations()
+    // Close modal after successful update
+    closeModal()
   } catch (error) {
     console.error('Error updating status:', error)
   }
 }
 
 const viewDetails = (recommendation: any) => {
-  // TODO: Implement detailed view modal
-  alert(`Recommendation Details:\n\nTitle: ${recommendation.title}\nDescription: ${recommendation.description}\nRationale: ${recommendation.rationale}\nExpected Impact: ${recommendation.expectedImpact}`)
+  selectedRecommendation.value = recommendation
+}
+
+const closeModal = () => {
+  selectedRecommendation.value = null
 }
 
 const formatDate = (dateString: string) => {

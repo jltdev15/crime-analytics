@@ -29,11 +29,11 @@ This project now includes Firebase Authentication integration. Here's what has b
   - Demo account button
   - Form validation
 
-### 4. Dashboard Component
-- **File**: `src/views/Dashboard.vue`
-- Protected route that shows after successful authentication
-- Displays user information
-- Sign out functionality
+### 4. Analytics Landing (Protected)
+- **File**: `src/views/DescriptiveAnalytics.vue`
+- Route: `/dashboard` and `/analytics` both render this page
+- Shown after successful authentication
+- Displays crime analytics overview and metrics
 
 ### 5. Authentication Store
 - **File**: `src/stores/auth.ts`

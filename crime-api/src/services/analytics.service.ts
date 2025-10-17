@@ -266,4 +266,54 @@ export class AnalyticsService {
     ]);
     return results.map(r => ({ barangay: r.barangay, crimeRate: Number(r.crimeRate.toFixed(2)) }));
   }
+
+  /**
+   * Get map data with barangay coordinates and crime statistics
+   */
+  async getMapData(): Promise<any[]> {
+    // First, get all barangays with coordinates
+    const allBarangays = await Barangay.find({
+      latitude: { $ne: null },
+      longitude: { $ne: null }
+    }).lean();
+
+    // Then get crime counts for each barangay
+    const crimeCounts = await Crime.aggregate([
+      {
+        $group: {
+          _id: { barangay: '$barangay', municipality: '$municipality', province: '$province', country: '$country' },
+          crimeCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Create a map of crime counts for quick lookup
+    const crimeMap = new Map();
+    crimeCounts.forEach(crime => {
+      const key = `${crime._id.barangay}|${crime._id.municipality}|${crime._id.province}|${crime._id.country}`;
+      crimeMap.set(key, crime.crimeCount);
+    });
+
+    // Combine barangay data with crime counts
+    const data = allBarangays.map(barangay => {
+      const key = `${barangay.name}|${barangay.municipality}|${barangay.province}|${barangay.country}`;
+      const crimeCount = crimeMap.get(key) || 0;
+      
+      return {
+        barangay: barangay.name,
+        municipality: barangay.municipality,
+        province: barangay.province,
+        crimeCount: crimeCount,
+        population: barangay.population,
+        latitude: barangay.latitude,
+        longitude: barangay.longitude,
+        crimeRate: barangay.population && barangay.population > 0 
+          ? (crimeCount / barangay.population) * 1000 
+          : null
+      };
+    });
+
+    // Sort by crime count descending
+    return data.sort((a, b) => b.crimeCount - a.crimeCount);
+  }
 }

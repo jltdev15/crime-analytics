@@ -99,4 +99,16 @@ export class AnalyticsController {
       res.status(500).json({ error: error.message });
     }
   };
+
+  /**
+   * Get map data with barangay coordinates and crime statistics
+   */
+  getMapData = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const mapData = await this.analyticsService.getMapData();
+      res.json(mapData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  };
 }

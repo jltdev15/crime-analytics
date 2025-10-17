@@ -5,6 +5,11 @@
       <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between">
           <div>
+            <nav class="text-sm text-gray-500 mb-1">
+              <router-link to="/analytics" class="hover:text-gray-700">Analytics</router-link>
+              <span class="mx-2">/</span>
+              <span class="text-gray-700">Data Management</span>
+            </nav>
             <h1 class="text-3xl font-bold text-gray-900">Data Management</h1>
             <p class="mt-2 text-sm text-gray-600">
               Upload new crime data, monitor system health, and manage your dataset
@@ -20,16 +25,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Refresh
-            </button>
-            <button
-              @click="retrainModel"
-              :disabled="loading"
-              class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              Retrain AI
             </button>
           </div>
         </div>
@@ -121,14 +116,14 @@
         </div>
 
         <!-- System Health Section -->
-        <div class="bg-white overflow-hidden shadow rounded-lg mb-6">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+        <!-- <div class="bg-white overflow-hidden shadow rounded-lg mb-6">
+          <div class="px-4 py-5 sm:p-6"> -->
+            <!-- <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
               System Health
-            </h3>
+            </h3> -->
             
             <!-- Health Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <div class="bg-green-50 p-4 rounded-lg">
                 <div class="flex items-center">
                   <div class="flex-shrink-0">
@@ -189,10 +184,10 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </div> -->
 
             <!-- Health Details -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
                 <h4 class="text-sm font-medium text-gray-900 mb-3">Data Quality</h4>
                 <div class="space-y-2">
@@ -230,41 +225,11 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </div> -->
+          <!-- </div>
+        </div> -->
 
-        <!-- Recent Activity -->
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Recent Activity
-            </h3>
-            
-            <div class="flow-root">
-              <ul class="-mb-8">
-                <li v-for="(activity, index) in recentActivity" :key="index" class="relative pb-8">
-                  <div v-if="index !== recentActivity.length - 1" class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></div>
-                  <div class="relative flex space-x-3">
-                    <div>
-                      <span class="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white" :class="activity.iconBg">
-                        <component :is="activity.icon" class="h-5 w-5" :class="activity.iconColor" />
-                      </span>
-                    </div>
-                    <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                      <div>
-                        <p class="text-sm text-gray-500">{{ activity.message }}</p>
-                      </div>
-                      <div class="text-right text-sm whitespace-nowrap text-gray-500">
-                        {{ formatDate(activity.timestamp) }}
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
+
       </div>
     </div>
 
@@ -484,37 +449,6 @@ const refreshData = async () => {
   }
 };
 
-const retrainModel = async () => {
-  loading.value = true;
-  
-  try {
-    const response = await axios.post('/api/predict/test/training');
-    
-    if (response.data.success) {
-      successMessage.value = 'AI model retrained successfully!';
-      showSuccessModal.value = true;
-      
-      // Add to recent activity
-      recentActivity.value.unshift({
-        message: 'AI model retrained with latest data',
-        timestamp: new Date(),
-        icon: 'svg',
-        iconBg: 'bg-purple-500',
-        iconColor: 'text-white'
-      });
-      
-      // Refresh data
-      await refreshData();
-    } else {
-      throw new Error(response.data.message || 'Training failed');
-    }
-  } catch (error: any) {
-    errorMessage.value = error.response?.data?.message || error.message || 'Training failed';
-    showErrorModal.value = true;
-  } finally {
-    loading.value = false;
-  }
-};
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false;

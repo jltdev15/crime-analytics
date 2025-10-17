@@ -22,6 +22,9 @@ router.get('/distribution', analyticsController.getCrimeDistribution);
 // Crime type distribution
 router.get('/types/distribution', analyticsController.getCrimeTypeDistribution);
 
+// Map data with coordinates and crime statistics
+router.get('/map-data', analyticsController.getMapData);
+
 // Low crime rate barangays
 router.get('/low/barangays/crime-rate', analyticsController.getLowCrimeRateBarangays);
 

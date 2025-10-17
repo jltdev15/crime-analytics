@@ -5,7 +5,7 @@
         <h3 class="text-xl font-semibold text-gray-900">Data Import</h3>
         <p class="text-sm text-gray-600 mt-1">Upload new crime data and population data to train the AI model</p>
       </div>
-      <div class="flex space-x-3">
+      <!-- <div class="flex space-x-3">
         <button
           @click="downloadTemplate('crime')"
           class="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -24,7 +24,7 @@
           </svg>
           Population Template
         </button>
-      </div>
+      </div> -->
     </div>
 
     <!-- Import Tabs -->
@@ -266,45 +266,129 @@
     </div>
 
     <!-- Import Results Modal -->
-    <div v-if="importResult" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full" :class="importResult.success ? 'bg-green-100' : 'bg-red-100'">
-            <svg v-if="importResult.success" class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <svg v-else class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div v-if="importResult" 
+         @click.self="closeImportResult"
+         @keydown.esc="closeImportResult"
+         class="fixed inset-0 bg-gray-900/10 backdrop-blur-sm transition-opacity duration-300 flex items-center justify-center z-50 p-4">
+      <div @click.stop class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="p-6">
+          <!-- Modal Header -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-full flex items-center justify-center" 
+                   :class="importResult.success ? 'bg-green-100' : 'bg-red-100'">
+                <svg v-if="importResult.success" class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                <svg v-else class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-2xl font-bold text-gray-900">
+                  {{ importResult.success ? 'Import Successful' : 'Import Failed' }}
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">{{ importResult.message }}</p>
+              </div>
+            </div>
+            <button @click="closeImportResult" class="text-gray-400 hover:text-gray-600 transition-colors">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
-          <div class="mt-2 px-7 py-3">
-            <h3 class="text-lg font-medium text-gray-900">{{ importResult.success ? 'Import Successful' : 'Import Failed' }}</h3>
-            <div class="mt-2 px-1 py-3">
-              <p class="text-sm text-gray-500">{{ importResult.message }}</p>
-              <div v-if="importResult.data" class="mt-3 text-sm">
-                <p><strong>Total Rows:</strong> {{ importResult.data.totalRows }}</p>
-                <p>
-                  <strong>Imported:</strong>
-                  {{
-                    importResult.data.importedCount ??
-                    ((importResult.data.upsertedCount || 0) + (importResult.data.modifiedCount || 0))
-                  }}
-                </p>
-                <p v-if="importResult.data.upsertedCount !== undefined"><strong>Upserted:</strong> {{ importResult.data.upsertedCount }}</p>
-                <p v-if="importResult.data.modifiedCount !== undefined"><strong>Modified:</strong> {{ importResult.data.modifiedCount }}</p>
-                <p v-if="importResult.data.skippedCount > 0"><strong>Skipped:</strong> {{ importResult.data.skippedCount }}</p>
-                <div v-if="importResult.data.aiRetraining" class="mt-2 p-2 rounded" :class="importResult.data.aiRetraining.success ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'">
-                  <p class="text-xs">{{ importResult.data.aiRetraining.message }}</p>
+
+          <!-- Import Statistics -->
+          <div v-if="importResult.data" class="space-y-6">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="bg-blue-50 rounded-xl p-4">
+                <div class="text-2xl font-bold text-blue-600">{{ importResult.data.totalRows || 0 }}</div>
+                <div class="text-sm text-blue-700">Total Rows</div>
+              </div>
+              <div class="bg-green-50 rounded-xl p-4">
+                <div class="text-2xl font-bold text-green-600">
+                  {{ importResult.data.importedCount ?? ((importResult.data.upsertedCount || 0) + (importResult.data.modifiedCount || 0)) }}
+                </div>
+                <div class="text-sm text-green-700">Imported</div>
+              </div>
+              <div v-if="importResult.data.upsertedCount !== undefined" class="bg-yellow-50 rounded-xl p-4">
+                <div class="text-2xl font-bold text-yellow-600">{{ importResult.data.upsertedCount }}</div>
+                <div class="text-sm text-yellow-700">Upserted</div>
+              </div>
+              <div v-if="importResult.data.skippedCount > 0" class="bg-red-50 rounded-xl p-4">
+                <div class="text-2xl font-bold text-red-600">{{ importResult.data.skippedCount }}</div>
+                <div class="text-sm text-red-700">Skipped</div>
+              </div>
+            </div>
+
+            <!-- Detailed Breakdown -->
+            <div class="bg-gray-50 rounded-xl p-6">
+              <h4 class="text-lg font-semibold text-gray-900 mb-4">Import Details</h4>
+              <div class="space-y-3">
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">Total Rows Processed</span>
+                  <span class="text-sm text-gray-900 font-semibold">{{ importResult.data.totalRows || 0 }}</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">Successfully Imported</span>
+                  <span class="text-sm text-green-600 font-semibold">
+                    {{ importResult.data.importedCount ?? ((importResult.data.upsertedCount || 0) + (importResult.data.modifiedCount || 0)) }}
+                  </span>
+                </div>
+                <div v-if="importResult.data.upsertedCount !== undefined" class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">Upserted Records</span>
+                  <span class="text-sm text-yellow-600 font-semibold">{{ importResult.data.upsertedCount }}</span>
+                </div>
+                <div v-if="importResult.data.modifiedCount !== undefined" class="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span class="text-sm font-medium text-gray-700">Modified Records</span>
+                  <span class="text-sm text-blue-600 font-semibold">{{ importResult.data.modifiedCount }}</span>
+                </div>
+                <div v-if="importResult.data.skippedCount > 0" class="flex justify-between items-center py-2">
+                  <span class="text-sm font-medium text-gray-700">Skipped Records</span>
+                  <span class="text-sm text-red-600 font-semibold">{{ importResult.data.skippedCount }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Retraining Status -->
+            <div v-if="importResult.data.aiRetraining" 
+                 class="rounded-xl p-4" 
+                 :class="importResult.data.aiRetraining.success ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" 
+                     :class="importResult.data.aiRetraining.success ? 'bg-green-100' : 'bg-yellow-100'">
+                  <svg v-if="importResult.data.aiRetraining.success" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg v-else class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h5 class="text-sm font-semibold" 
+                      :class="importResult.data.aiRetraining.success ? 'text-green-800' : 'text-yellow-800'">
+                    AI Model Retraining
+                  </h5>
+                  <p class="text-xs mt-1" 
+                     :class="importResult.data.aiRetraining.success ? 'text-green-700' : 'text-yellow-700'">
+                    {{ importResult.data.aiRetraining.message }}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-          <div class="items-center px-4 py-3">
-            <button
-              @click="closeImportResult"
-              class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            >
-              OK
+
+          <!-- Action Buttons -->
+          <div class="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 mt-6">
+            <button @click="closeImportResult" 
+                    class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
+              Close
+            </button>
+            <button v-if="importResult.success" 
+                    @click="fetchImportHistory(); closeImportResult()" 
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+              View History
             </button>
           </div>
         </div>
@@ -474,7 +558,9 @@ const downloadTemplate = (type: 'crime' | 'population') => {
         municipality: 'LUBAO',
         province: 'PAMPANGA',
         country: 'PHILIPPINES',
-        population: 5000
+        population: 5000,
+        latitude: 14.9333,
+        longitude: 120.6000
       }
     ];
     filename = 'population_data_template.xlsx';

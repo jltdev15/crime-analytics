@@ -4,6 +4,22 @@
 
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
       <div class="px-4 py-6 sm:px-0 space-y-6">
+        <!-- Global Error State -->
+        <div v-if="error && !loading" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div class="flex items-center">
+            <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="text-sm font-medium text-red-800">Failed to load predictive data</h3>
+              <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+            </div>
+            <button @click="fetchData" class="ml-4 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors">
+              Retry
+            </button>
+          </div>
+        </div>
+
         <!-- Page Header -->
         <div class="flex justify-between items-center">
           <div>
@@ -22,14 +38,16 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <span class="text-sm text-gray-500">Last Updated:</span>
-                <span class="text-sm font-medium text-gray-700">{{ lastUpdated }}</span>
+                <span v-if="!loading" class="text-sm font-medium text-gray-700">{{ lastUpdated }}</span>
+                <div v-else class="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
             </div>
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                 </svg>
                 <span class="text-sm text-gray-500">AI Model:</span>
-                <span class="text-sm font-medium text-gray-700">{{ modelInfo.neuralNetwork?.isTrained ? 'Neural Network' : 'Statistical' }}</span>
+                <span v-if="!loading" class="text-sm font-medium text-gray-700">{{ modelInfo.neuralNetwork?.isTrained ? 'Neural Network' : 'Statistical' }}</span>
+                <div v-else class="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
             </div>
             </div>
           </div>
@@ -82,6 +100,22 @@
               <div class="h-3 w-32 bg-gray-100 rounded mt-2"></div>
               <div class="h-10 w-24 bg-gray-200 rounded mt-6"></div>
               <div class="h-3 w-20 bg-gray-100 rounded mt-2"></div>
+            </div>
+          </template>
+          
+          <!-- Error State -->
+          <template v-else-if="error">
+            <div class="bg-white rounded-2xl border border-gray-200 p-6 md:col-span-4">
+              <div class="text-center">
+                <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Failed to load data</h3>
+                <p class="text-gray-500 mb-4">{{ error }}</p>
+                <button @click="fetchData" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Retry
+                </button>
+              </div>
             </div>
           </template>
           
@@ -221,7 +255,40 @@
               </div>
             </div>
             <div class="h-80">
-              <div v-if="loading" class="h-full w-full animate-pulse bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded"></div>
+              <!-- Loading State -->
+              <div v-if="loading" class="h-full w-full flex items-center justify-center bg-gray-50 rounded">
+                <div class="text-center">
+                  <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                  <p class="text-gray-600">Loading forecast data...</p>
+                </div>
+              </div>
+              
+              <!-- Error State -->
+              <div v-else-if="error" class="h-full w-full flex items-center justify-center bg-red-50 rounded">
+                <div class="text-center">
+                  <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <p class="text-red-600 mb-2">Failed to load forecast</p>
+                  <p class="text-sm text-red-500 mb-4">{{ error }}</p>
+                  <button @click="fetchData" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Retry
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Empty Data State -->
+              <div v-else-if="!predictions || predictions.length === 0" class="h-full w-full flex items-center justify-center bg-gray-50 rounded">
+                <div class="text-center">
+                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                  <p class="text-gray-600 mb-2">No forecast data available</p>
+                  <p class="text-sm text-gray-500">Generate predictions to see forecast charts</p>
+                </div>
+              </div>
+              
+              <!-- Data State -->
               <canvas v-else ref="forecastChart"></canvas>
             </div>
           </div>
@@ -230,7 +297,40 @@
           <div class="bg-white rounded-2xl border border-gray-200 p-6">
             <h3 class="text-xl font-semibold text-gray-900 mb-4">Risk Distribution</h3>
             <div class="h-80">
-              <div v-if="loading" class="h-full w-full animate-pulse bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100 rounded"></div>
+              <!-- Loading State -->
+              <div v-if="loading" class="h-full w-full flex items-center justify-center bg-gray-50 rounded">
+                <div class="text-center">
+                  <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                  <p class="text-gray-600">Loading risk data...</p>
+                </div>
+              </div>
+              
+              <!-- Error State -->
+              <div v-else-if="error" class="h-full w-full flex items-center justify-center bg-red-50 rounded">
+                <div class="text-center">
+                  <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <p class="text-red-600 mb-2">Failed to load risk distribution</p>
+                  <p class="text-sm text-red-500 mb-4">{{ error }}</p>
+                  <button @click="fetchData" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Retry
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Empty Data State -->
+              <div v-else-if="!summary.riskDistribution || (summary.riskDistribution.high === 0 && summary.riskDistribution.medium === 0 && summary.riskDistribution.low === 0)" class="h-full w-full flex items-center justify-center bg-gray-50 rounded">
+                <div class="text-center">
+                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                  </svg>
+                  <p class="text-gray-600 mb-2">No risk data available</p>
+                  <p class="text-sm text-gray-500">Generate predictions to see risk distribution</p>
+                </div>
+              </div>
+              
+              <!-- Data State -->
               <canvas v-else ref="riskChart"></canvas>
             </div>
           </div>
@@ -243,9 +343,22 @@
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p class="mt-2 text-gray-600">Loading predictions...</p>
           </div>
+          <div v-else-if="error" class="text-center py-8">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-red-600 mb-2">Failed to load risk data</p>
+            <p class="text-sm text-red-500 mb-4">{{ error }}</p>
+            <button @click="fetchData" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Retry
+            </button>
+          </div>
           <div v-else-if="topRiskBarangays.length === 0" class="text-center py-8">
+            <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
             <p class="text-gray-500">No high-risk predictions available</p>
-              </div>
+          </div>
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div v-for="barangay in topRiskBarangays" :key="`${barangay.barangay}-${barangay.crimeType}`" 
                  class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -295,6 +408,16 @@
           <div v-if="loading" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p class="mt-2 text-gray-600">Loading prediction alerts...</p>
+          </div>
+          <div v-else-if="error" class="text-center py-8">
+            <svg class="w-12 h-12 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-red-600 mb-2">Failed to load predictions</p>
+            <p class="text-sm text-red-500 mb-4">{{ error }}</p>
+            <button @click="fetchData" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Retry
+            </button>
           </div>
           <div v-else-if="predictions.length === 0" class="text-center py-8">
             <div class="text-gray-400 mb-4">
@@ -380,6 +503,7 @@ const router = useRouter()
 
 // Reactive data
 const loading = ref(false)
+const error = ref<string | null>(null)
 const summary = reactive({
   totalPredictions: 0,
   riskDistribution: { high: 0, medium: 0, low: 0 },
@@ -404,6 +528,7 @@ let riskChartInstance: Chart | null = null
 // Methods
 const fetchData = async () => {
   loading.value = true
+  error.value = null
   try {
     const [summaryResponse, predictionsResponse, modelResponse] = await Promise.all([
       axios.get(`${API_BASE}/predict/summary`),
@@ -425,8 +550,9 @@ const fetchData = async () => {
     loading.value = false
     await nextTick()
     renderCharts()
-  } catch (error) {
-    console.error('Error fetching predictive data:', error)
+  } catch (err: any) {
+    console.error('Error fetching predictive data:', err)
+    error.value = err.response?.data?.message || err.message || 'Failed to load predictive data'
     loading.value = false
   }
 }

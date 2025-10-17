@@ -1,8 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import SignIn from '../views/SignIn.vue'
-import Dashboard from '../views/Dashboard.vue'
 import DescriptiveAnalytics from '../views/DescriptiveAnalytics.vue'
-import Analytics from '../views/Analytics.vue'
 import CrimeSearch from '../views/CrimeSearch.vue'
 import IncidentMap from '../views/IncidentMap.vue'
 import Predictive from '../views/Predictive.vue'

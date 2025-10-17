@@ -262,13 +262,16 @@ export class DataImportController {
           filename: 'population_data_template.xlsx',
           description: 'Template for population data import',
           requiredFields: ['name', 'municipality', 'province', 'country', 'population'],
+          optionalFields: ['latitude', 'longitude'],
           sampleData: [
             {
               name: 'SANTA CRUZ',
               municipality: 'LUBAO',
               province: 'PAMPANGA',
               country: 'PHILIPPINES',
-              population: 5000
+              population: 5000,
+              latitude: 14.9333,
+              longitude: 120.6000
             }
           ]
         }
@@ -468,13 +471,17 @@ export class DataImportController {
       const province = pickFirst(raw, ['province', 'Province', 'PROVINCE']);
       const country = pickFirst(raw, ['country', 'Country', 'COUNTRY']);
       const population = pickFirst(raw, ['population', 'Population', 'POPULATION']);
+      const latitude = pickFirst(raw, ['lat', 'latitude', 'Latitude', 'LATITUDE', 'Lat', 'LAT']);
+      const longitude = pickFirst(raw, ['lng', 'longitude', 'Longitude', 'LONGITUDE', 'Lng', 'LNG']);
 
       return {
         name: toUpper(name),
         municipality: toUpper(municipality),
         province: toUpper(province),
         country: toUpper(country) || 'PHILIPPINES',
-        population: num(population)
+        population: num(population),
+        latitude: num(latitude),
+        longitude: num(longitude)
       };
     });
   }
@@ -564,6 +571,16 @@ export class DataImportController {
 
       if (row.population === undefined || isNaN(Number(row.population))) {
         errors.push(`Row ${index + 1}: Invalid or missing population number`);
+      }
+
+      // Validate latitude if provided
+      if (row.latitude !== undefined && (isNaN(Number(row.latitude)) || Number(row.latitude) < -90 || Number(row.latitude) > 90)) {
+        errors.push(`Row ${index + 1}: Invalid latitude value (must be between -90 and 90)`);
+      }
+
+      // Validate longitude if provided
+      if (row.longitude !== undefined && (isNaN(Number(row.longitude)) || Number(row.longitude) < -180 || Number(row.longitude) > 180)) {
+        errors.push(`Row ${index + 1}: Invalid longitude value (must be between -180 and 180)`);
       }
     });
 
@@ -761,14 +778,26 @@ export class DataImportController {
    * Import population data to database
    */
   private async importPopulationData(data: any[]): Promise<any> {
-    const processedData = data.map(row => ({
-      name: row.name?.toString().toUpperCase().trim(),
-      // Default like CLI fallback when municipality/province are absent
-      municipality: (row.municipality?.toString().toUpperCase().trim()) || 'LUBAO',
-      province: (row.province?.toString().toUpperCase().trim()) || 'PAMPANGA',
-      country: row.country?.toString().toUpperCase().trim() || 'PHILIPPINES',
-      population: parseInt(row.population) || 0
-    })).filter(row => row.name);
+    const processedData = data.map(row => {
+      const processed = {
+        name: row.name?.toString().toUpperCase().trim(),
+        // Default like CLI fallback when municipality/province are absent
+        municipality: (row.municipality?.toString().toUpperCase().trim()) || 'LUBAO',
+        province: (row.province?.toString().toUpperCase().trim()) || 'PAMPANGA',
+        country: row.country?.toString().toUpperCase().trim() || 'PHILIPPINES',
+        population: parseInt(row.population) || 0
+      };
+
+      // Add latitude and longitude if provided
+      if (row.latitude !== undefined && !isNaN(Number(row.latitude))) {
+        (processed as any).latitude = Number(row.latitude);
+      }
+      if (row.longitude !== undefined && !isNaN(Number(row.longitude))) {
+        (processed as any).longitude = Number(row.longitude);
+      }
+
+      return processed;
+    }).filter(row => row.name);
 
     // Use upsert to update existing or insert new
     const operations = processedData.map(row => ({

@@ -75,7 +75,7 @@
         </div>
 
         <!-- Statistics -->
-        <div class="grid grid-cols-3 gap-8">
+        <!-- <div class="grid grid-cols-3 gap-8">
           <div class="text-center">
             <div class="text-3xl font-bold text-blue-600 mb-1">1,247</div>
             <div class="text-gray-600">Incidents Tracked</div>
@@ -88,7 +88,7 @@
             <div class="text-3xl font-bold text-purple-600 mb-1">44</div>
             <div class="text-gray-600">Barangays</div>
           </div>
-        </div>
+        </div> -->
       </div>
 
       <!-- Right Side - Sign In Form -->
@@ -129,7 +129,7 @@
             </div>
 
             <!-- Remember Me & Forgot Password -->
-            <div class="flex items-center justify-between">
+            <!-- <div class="flex items-center justify-between">
               <label class="flex items-center">
                 <input v-model="form.rememberMe" type="checkbox"
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -139,7 +139,7 @@
                 class="text-sm text-blue-600 hover:text-blue-500 focus:outline-none">
                 Forgot password?
               </button>
-            </div>
+            </div> -->
 
             <!-- Sign In Button -->
             <button type="submit" :disabled="isLoading"
@@ -152,20 +152,20 @@
             </button>
 
             <!-- Demo Account Link -->
-            <div class="text-center">
+            <!-- <div class="text-center">
               <span class="text-gray-500 text-sm">or</span>
               <br />
               <button type="button" @click="handleDemoAccount" 
                 class="text-blue-600 hover:text-blue-500 text-sm focus:outline-none">
                 Try Demo Account
               </button>
-            </div>
+            </div> -->
           </form>
 
           <!-- Access Request -->
-          <div class="mt-8 text-center">
+          <!-- <div class="mt-8 text-center">
             <a href="#" class="text-blue-600 hover:text-blue-500 text-sm">Need access? Request Access</a>
-          </div>
+          </div> -->
 
           <!-- Security Footer -->
           <div class="mt-8 text-center">
@@ -199,8 +199,8 @@ const successMessage = ref('')
 onMounted(() => {
   onAuthStateChange((user: AuthUser | null) => {
     if (user) {
-      // User is already signed in, redirect to dashboard
-      router.push('/dashboard')
+      // User is already signed in, redirect to analytics
+      router.push('/analytics')
     }
   })
 })
@@ -223,9 +223,9 @@ const handleSignIn = async () => {
     
     successMessage.value = 'Sign in successful! Redirecting...'
     
-    // Redirect to dashboard after successful sign in
+    // Redirect to analytics after successful sign in
     setTimeout(() => {
-      router.push('/dashboard')
+      router.push('/analytics')
     }, 1000)
     
   } catch (error: any) {
