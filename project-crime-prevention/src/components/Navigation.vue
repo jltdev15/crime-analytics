@@ -21,8 +21,18 @@
         <!-- Right Side - System Status and User Actions -->
         <div class="flex items-center space-x-3">
           <!-- System Status -->
-          <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-            System Online
+          <div :class="[
+            'px-3 py-1 rounded-full text-sm font-medium flex items-center cursor-pointer hover:opacity-80 transition-opacity',
+            systemStatus === 'online' ? 'bg-green-100 text-green-800' : 
+            systemStatus === 'offline' ? 'bg-red-100 text-red-800' : 
+            'bg-yellow-100 text-yellow-800'
+          ]" @click="checkSystemHealth" title="Click to refresh status">
+            <div v-if="systemStatus === 'checking'" class="animate-spin -ml-1 mr-2 h-3 w-3 border border-current border-t-transparent rounded-full"></div>
+            <div v-else-if="systemStatus === 'online'" class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <div v-else-if="systemStatus === 'offline'" class="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+            {{ systemStatus === 'online' ? 'System Online' : 
+               systemStatus === 'offline' ? 'System Offline' : 
+               'Checking...' }}
           </div>
           
           <!-- Settings Dropdown -->
@@ -159,9 +169,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, watch } from 'vue'
+import { ref, onUnmounted, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { healthAPI } from '../services/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -172,6 +183,10 @@ const isLoggingOut = ref(false)
 
 // Settings dropdown state
 const showSettingsDropdown = ref(false)
+
+// System status state
+const systemStatus = ref<'online' | 'offline' | 'checking'>('checking')
+let healthCheckInterval: number | null = null
 
 // Navigation items
 const navigationItems = [
@@ -266,6 +281,47 @@ watch(showLogoutModal, (isOpen) => {
   }
 })
 
+// Health check functions
+const checkSystemHealth = async () => {
+  try {
+    systemStatus.value = 'checking'
+    const response = await healthAPI.checkHealth()
+    console.log('Health check successful:', response.data)
+    systemStatus.value = 'online'
+  } catch (error: any) {
+    console.error('Health check failed:', error)
+    if (error.response) {
+      console.error('Response status:', error.response.status)
+      console.error('Response data:', error.response.data)
+    } else if (error.request) {
+      console.error('No response received:', error.request)
+    } else {
+      console.error('Error setting up request:', error.message)
+    }
+    systemStatus.value = 'offline'
+  }
+}
+
+const startHealthCheck = () => {
+  // Initial check
+  checkSystemHealth()
+  
+  // Set up periodic checks every 30 seconds
+  healthCheckInterval = setInterval(checkSystemHealth, 30000)
+}
+
+const stopHealthCheck = () => {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval)
+    healthCheckInterval = null
+  }
+}
+
+// Start health check when component mounts
+onMounted(() => {
+  startHealthCheck()
+})
+
 // Cleanup event listeners and body class on component unmount
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
@@ -275,6 +331,7 @@ onUnmounted(() => {
   if (typeof document !== 'undefined') {
     document.body.classList.remove('modal-open')
   }
+  stopHealthCheck()
 })
 </script>
 

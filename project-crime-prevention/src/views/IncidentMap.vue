@@ -52,11 +52,29 @@
             <div v-else-if="error" class="flex items-center space-x-4 text-sm text-red-600">
               <span>Failed to load statistics</span>
             </div>
-            <div v-else class="flex items-center space-x-4 text-sm text-gray-600">
-              <span>Total Barangays: {{ mapData.length }}</span>
-              <span>High Risk: {{ highRiskCount }}</span>
-              <span>Medium Risk: {{ mediumRiskCount }}</span>
-              <span>Low Risk: {{ lowRiskCount }}</span>
+            <div v-else class="flex items-center space-x-6 text-sm">
+              <div class="flex items-center space-x-2">
+                <span class="text-gray-600">Total Barangays:</span>
+                <span class="font-semibold text-gray-900">{{ mapData.length }}</span>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                <span class="text-gray-600">High Risk:</span>
+                <span class="font-semibold text-red-600">{{ highRiskCount }}</span>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.5s;"></div>
+                <span class="text-gray-600">Medium Risk:</span>
+                <span class="font-semibold text-yellow-600">{{ mediumRiskCount }}</span>
+              </div>
+              
+              <div class="flex items-center space-x-2">
+                <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse" style="animation-delay: 1s;"></div>
+                <span class="text-gray-600">Low Risk:</span>
+                <span class="font-semibold text-green-600">{{ lowRiskCount }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -97,7 +115,9 @@
           </div>
           
           <!-- Map Display -->
-          <div v-else id="map" class="h-96 w-full"></div>
+          <div v-else class="relative">
+            <div id="map" class="h-96 w-full min-h-[384px] bg-gray-100 rounded-lg"></div>
+          </div>
         </div>
 
         <!-- Map Legend -->
@@ -231,22 +251,32 @@ const lowRiskCount = computed(() =>
 // Fetch map data from API
 const fetchMapData = async () => {
   try {
+    console.log('Fetching map data...')
     loading.value = true
     error.value = null
     
     const response = await analyticsAPI.getMapData()
+    console.log('API response:', response)
     mapData.value = response.data
+    console.log('Map data set:', mapData.value.length, 'items')
     
     // Wait for DOM to be ready and initialize map
     await nextTick()
+    console.log('DOM ready, initializing map...')
     setTimeout(() => {
       initMap()
       addMarkers()
     }, 100) // Small delay to ensure DOM is ready
     
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Failed to load map data'
     console.error('Error fetching map data:', err)
+    error.value = err.response?.data?.error || 'Failed to load map data'
+    
+    // Initialize map even if data fails to load
+    await nextTick()
+    setTimeout(() => {
+      initMap()
+    }, 100)
   } finally {
     loading.value = false
   }
@@ -255,23 +285,48 @@ const fetchMapData = async () => {
 // Initialize Leaflet map
 const initMap = () => {
   try {
+    console.log('Initializing map...')
+    
     // Check if map container exists
     const mapContainer = document.getElementById('map')
     if (!mapContainer) {
       throw new Error('Map container not found')
     }
     
+    console.log('Map container found:', mapContainer)
+    
+    // Remove existing map if it exists
     if (map.value) {
       map.value.remove()
+      map.value = null
     }
     
-    // Center on Lubao, Pampanga
-    map.value = L.map('map').setView([14.9333, 120.6000], 12)
+    // Create new map instance
+    map.value = L.map('map', {
+      center: [14.9333, 120.6000],
+      zoom: 12,
+      zoomControl: true
+    })
+    
+    console.log('Map created:', map.value)
     
     // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map.value as L.Map)
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    })
+    
+    tileLayer.addTo(map.value)
+    console.log('Tile layer added')
+    
+    // Force map to resize after a short delay
+    setTimeout(() => {
+      if (map.value) {
+        map.value.invalidateSize()
+        console.log('Map invalidated and resized')
+      }
+    }, 100)
+    
   } catch (err: any) {
     console.error('Error initializing map:', err)
     error.value = 'Failed to initialize map: ' + err.message
@@ -296,6 +351,60 @@ const getMarkerColor = (riskLevel: 'high' | 'medium' | 'low'): string => {
   }
 }
 
+// Get pulse configuration based on risk level
+const getPulseConfig = (riskLevel: 'high' | 'medium' | 'low') => {
+  switch (riskLevel) {
+    case 'high':
+      return {
+        startRadius: 150,
+        maxRadius: 400,
+        speed: 25,
+        interval: 80, // Fastest pulse
+        weight: 3,
+        opacity: 0.8,
+        fillOpacity: 0.15,
+        opacityDecay: 800,
+        fillOpacityDecay: 1600
+      }
+    case 'medium':
+      return {
+        startRadius: 100,
+        maxRadius: 250,
+        speed: 15,
+        interval: 120, // Medium speed
+        weight: 2,
+        opacity: 0.6,
+        fillOpacity: 0.1,
+        opacityDecay: 1000,
+        fillOpacityDecay: 2000
+      }
+    case 'low':
+      return {
+        startRadius: 80,
+        maxRadius: 180,
+        speed: 10,
+        interval: 200, // Slowest pulse
+        weight: 1,
+        opacity: 0.4,
+        fillOpacity: 0.05,
+        opacityDecay: 1200,
+        fillOpacityDecay: 2400
+      }
+    default:
+      return {
+        startRadius: 80,
+        maxRadius: 180,
+        speed: 10,
+        interval: 200,
+        weight: 1,
+        opacity: 0.4,
+        fillOpacity: 0.05,
+        opacityDecay: 1200,
+        fillOpacityDecay: 2400
+      }
+  }
+}
+
 // Add markers to map
 const addMarkers = () => {
   if (!map.value) return
@@ -305,7 +414,7 @@ const addMarkers = () => {
     if (map.value) {
       map.value.removeLayer(marker as L.Layer)
     }
-    // Clear pulse intervals for high risk markers
+    // Clear pulse intervals for all markers
     if ((marker as any).pulseInterval) {
       clearInterval((marker as any).pulseInterval)
     }
@@ -318,9 +427,10 @@ const addMarkers = () => {
     const riskLevel = calculateRiskLevel(item.crimeRate)
     const color = getMarkerColor(riskLevel)
     
-    // Create custom marker
+    // Create custom marker with different sizes based on risk level
+    const markerRadius = riskLevel === 'high' ? 10 : riskLevel === 'medium' ? 8 : 6
     const marker = L.circleMarker([item.latitude, item.longitude], {
-      radius: 8,
+      radius: markerRadius,
       fillColor: color,
       color: '#ffffff',
       weight: 2,
@@ -328,48 +438,46 @@ const addMarkers = () => {
       fillOpacity: 0.8
     })
     
-    // Add pulse effect for high risk areas
-    if (riskLevel === 'high') {
-      // Create pulsing circle for high risk areas
-      const pulseCircle = L.circle([item.latitude, item.longitude], {
-        radius: 200, // Start with larger radius
-        color: color,
-        weight: 2,
-        opacity: 0.6,
-        fillColor: color,
-        fillOpacity: 0.1
-      })
-      
-      // Add pulsing animation
-      let pulseRadius = 200
-      let growing = true
-      
-      const pulseAnimation = () => {
-        if (growing) {
-          pulseRadius += 20
-          if (pulseRadius >= 400) growing = false
-        } else {
-          pulseRadius -= 20
-          if (pulseRadius <= 200) growing = true
-        }
-        
-        pulseCircle.setRadius(pulseRadius)
-        pulseCircle.setStyle({
-          opacity: 0.6 - (pulseRadius - 200) / 1000,
-          fillOpacity: 0.1 - (pulseRadius - 200) / 2000
-        })
+    // Add pulse effect for ALL risk levels with different intensities
+    const pulseConfig = getPulseConfig(riskLevel)
+    const pulseCircle = L.circle([item.latitude, item.longitude], {
+      radius: pulseConfig.startRadius,
+      color: color,
+      weight: pulseConfig.weight,
+      opacity: pulseConfig.opacity,
+      fillColor: color,
+      fillOpacity: pulseConfig.fillOpacity
+    })
+    
+    // Add pulsing animation with different speeds and intensities
+    let pulseRadius = pulseConfig.startRadius
+    let growing = true
+    
+    const pulseAnimation = () => {
+      if (growing) {
+        pulseRadius += pulseConfig.speed
+        if (pulseRadius >= pulseConfig.maxRadius) growing = false
+      } else {
+        pulseRadius -= pulseConfig.speed
+        if (pulseRadius <= pulseConfig.startRadius) growing = true
       }
       
-      // Start pulsing animation
-      const pulseInterval = setInterval(pulseAnimation, 100)
-      
-      // Store interval for cleanup
-      ;(marker as any).pulseInterval = pulseInterval
-      
-      // Add pulse circle to map
-      pulseCircle.addTo(map.value as L.Map)
-      markers.value.push(pulseCircle as L.Layer)
+      pulseCircle.setRadius(pulseRadius)
+      pulseCircle.setStyle({
+        opacity: pulseConfig.opacity - (pulseRadius - pulseConfig.startRadius) / pulseConfig.opacityDecay,
+        fillOpacity: pulseConfig.fillOpacity - (pulseRadius - pulseConfig.startRadius) / pulseConfig.fillOpacityDecay
+      })
     }
+    
+    // Start pulsing animation with different intervals
+    const pulseInterval = setInterval(pulseAnimation, pulseConfig.interval)
+    
+    // Store interval for cleanup
+    ;(marker as any).pulseInterval = pulseInterval
+    
+    // Add pulse circle to map
+    pulseCircle.addTo(map.value as L.Map)
+    markers.value.push(pulseCircle as L.Layer)
     
     // Create popup content
     const popupContent = `
@@ -409,5 +517,182 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Additional custom styles if needed */
+/* Map container styles */
+#map {
+  height: 384px !important;
+  width: 100% !important;
+  min-height: 384px !important;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure Leaflet map takes full container */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  border-radius: 0.5rem;
+}
+
+/* Risk level indicator styles */
+.risk-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.risk-high {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.risk-medium {
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fed7aa;
+}
+
+.risk-low {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+/* Pulse animation keyframes */
+@keyframes pulse-high {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulse-medium {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.4;
+  }
+}
+
+@keyframes pulse-low {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.2;
+  }
+}
+
+/* Enhanced marker styles */
+.leaflet-marker-icon {
+  animation: pulse-high 2s ease-in-out infinite;
+}
+
+/* Custom popup styles */
+.leaflet-popup-content {
+  font-family: 'Inter', sans-serif;
+}
+
+.leaflet-popup-content h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.leaflet-popup-content p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+/* Loading animation */
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Map controls styling */
+.map-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.map-controls button {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.map-controls button:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Statistics panel styling */
+.stats-panel {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Risk level badges */
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.risk-badge.high {
+  background-color: #fef2f2;
+  color: #dc2626;
+}
+
+.risk-badge.medium {
+  background-color: #fffbeb;
+  color: #d97706;
+}
+
+.risk-badge.low {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
 </style>

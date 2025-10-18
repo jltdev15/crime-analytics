@@ -14,7 +14,7 @@ http://localhost:3001/api
 
 ### 1. Get Summary Statistics
 ```http
-GET /analytics/summary
+GET /api/analytics/descriptive/summary
 ```
 
 **Description**: Get overall crime statistics and summary data
@@ -36,7 +36,7 @@ GET /analytics/summary
 
 ### 2. Get Top Barangays by Crime Count
 ```http
-GET /analytics/top-barangays?limit=10
+GET /api/analytics/descriptive/top/barangays/crime-count?limit=10
 ```
 
 **Parameters**:
@@ -51,9 +51,9 @@ GET /analytics/top-barangays?limit=10
       "barangay": "SANTA CRUZ",
       "municipality": "LUBAO",
       "province": "PAMPANGA",
-      "crimeCount": 45,
-      "crimeRate": 0.12,
-      "population": 3750
+      "crimeCount": 62,
+      "crimeRate": 3.50,
+      "population": 17700
     }
   ]
 }
@@ -61,7 +61,7 @@ GET /analytics/top-barangays?limit=10
 
 ### 3. Get Top Barangays by Crime Rate
 ```http
-GET /analytics/top-barangays-rate?limit=10
+GET /api/analytics/descriptive/top/barangays/crime-rate?limit=10
 ```
 
 **Parameters**:
@@ -73,12 +73,12 @@ GET /analytics/top-barangays-rate?limit=10
   "success": true,
   "data": [
     {
-      "barangay": "SANTA CRUZ",
+      "barangay": "SAN NICOLAS 1ST",
       "municipality": "LUBAO",
       "province": "PAMPANGA",
-      "crimeCount": 45,
-      "crimeRate": 0.12,
-      "population": 3750
+      "crimeCount": 23,
+      "crimeRate": 12.37,
+      "population": 1860
     }
   ]
 }
@@ -86,7 +86,7 @@ GET /analytics/top-barangays-rate?limit=10
 
 ### 4. Get Crime Distribution
 ```http
-GET /analytics/crime-distribution
+GET /api/analytics/descriptive/distribution
 ```
 
 **Response**:
@@ -108,11 +108,34 @@ GET /analytics/crime-distribution
 }
 ```
 
+### 5. Get Map Data
+```http
+GET /api/analytics/descriptive/map-data
+```
+
+**Description**: Get crime data with coordinates for mapping
+
+**Response**:
+```json
+[
+  {
+    "barangay": "SANTA CRUZ",
+    "municipality": "LUBAO",
+    "province": "PAMPANGA",
+    "crimeCount": 62,
+    "population": 17700,
+    "latitude": 14.9117,
+    "longitude": 120.5644,
+    "crimeRate": 3.5028248587570623
+  }
+]
+```
+
 ## 🧠 Predictive Analytics Endpoints
 
 ### 1. Generate All Predictions
 ```http
-POST /predict/generate/predictions
+POST /api/predict/generate/predictions
 ```
 
 **Description**: Train AI model and generate predictions for all barangays
@@ -132,7 +155,7 @@ POST /predict/generate/predictions
 
 ### 2. Get Incident Forecast
 ```http
-GET /predict/incidents
+GET /api/predict/incidents
 ```
 
 **Parameters**:
@@ -143,7 +166,7 @@ GET /predict/incidents
 
 **Example**:
 ```http
-GET /predict/incidents?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA&crimeType=DRUGS
+GET /api/predict/incidents?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA&crimeType=DRUGS
 ```
 
 **Response**:
@@ -173,7 +196,7 @@ GET /predict/incidents?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANG
 
 ### 3. Get Risk Assessment
 ```http
-GET /predict/risk
+GET /api/predict/risk
 ```
 
 **Parameters**:
@@ -183,7 +206,7 @@ GET /predict/risk
 
 **Example**:
 ```http
-GET /predict/risk?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA
+GET /api/predict/risk?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA
 ```
 
 **Response**:
@@ -211,7 +234,7 @@ GET /predict/risk?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA
 
 ### 4. Get Model Performance
 ```http
-GET /predict/model/performance
+GET /api/predict/model/performance
 ```
 
 **Response**:
@@ -242,7 +265,7 @@ GET /predict/model/performance
 
 ### 5. Test AI Training
 ```http
-POST /predict/test/training
+POST /api/predict/test/training
 ```
 
 **Description**: Manually trigger AI training for testing
@@ -265,7 +288,7 @@ POST /predict/test/training
 
 ### 1. Get All Crimes
 ```http
-GET /crimes
+GET /api/crimes
 ```
 
 **Parameters**:
@@ -310,7 +333,7 @@ GET /crimes?page=1&limit=10&search=DRUGS&barangay=SANTA%20CRUZ
 
 ### 2. Get Crime by ID
 ```http
-GET /crimes/:id
+GET /api/crimes/:id
 ```
 
 **Parameters**:
@@ -336,7 +359,7 @@ GET /crimes/:id
 
 ### 1. Get All Barangays
 ```http
-GET /barangays
+GET /api/barangays
 ```
 
 **Parameters**:
@@ -373,7 +396,7 @@ GET /barangays
 
 ### 2. Get Barangay by ID
 ```http
-GET /barangays/:id
+GET /api/barangays/:id
 ```
 
 **Parameters**:
@@ -467,12 +490,102 @@ GET /test
 }
 ```
 
+## 📊 Data Import Endpoints
+
+### 1. Upload Crime Data
+```http
+POST /api/import/crime-data
+```
+
+**Description**: Upload and import new crime data from Excel files
+
+**Request**: Multipart form data with Excel file
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Crime data imported successfully",
+  "data": {
+    "importedCount": 25,
+    "duplicates": 3,
+    "invalidRecords": 1,
+    "aiRetraining": {
+      "success": true,
+      "message": "AI model retrained with new data"
+    }
+  }
+}
+```
+
+### 2. Upload Population Data
+```http
+POST /api/import/population-data
+```
+
+**Description**: Upload and import population data from Excel files
+
+**Request**: Multipart form data with Excel file
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Population data imported successfully",
+  "data": {
+    "importedCount": 44,
+    "duplicates": 0,
+    "invalidRecords": 0
+  }
+}
+```
+
+### 3. Get Import Templates
+```http
+GET /api/import/templates
+```
+
+**Description**: Get Excel templates for data import
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "crimeTemplate": "templates/crime-data-template.xlsx",
+    "populationTemplate": "templates/population-data-template.xlsx"
+  }
+}
+```
+
+### 4. Get Import History
+```http
+GET /api/import/history
+```
+
+**Description**: Get history of data imports
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "65a1b2c3d4e5f6789abcdef0",
+      "fileName": "crime-data-2024.xlsx",
+      "importType": "crime",
+      "importedCount": 25,
+      "importedAt": "2024-01-15T10:30:00.000Z",
+      "status": "completed"
+    }
+  ]
+}
+```
+
 ## 📚 Examples
 
 ### JavaScript/Axios
 ```javascript
 // Get summary statistics
-const response = await axios.get('/api/analytics/summary');
+const response = await axios.get('/api/analytics/descriptive/summary');
 
 // Get incident forecast
 const forecast = await axios.get('/api/predict/incidents', {
@@ -491,7 +604,7 @@ const training = await axios.post('/api/predict/test/training');
 ### cURL
 ```bash
 # Get summary statistics
-curl -X GET "http://localhost:3001/api/analytics/summary"
+curl -X GET "http://localhost:3001/api/analytics/descriptive/summary"
 
 # Get incident forecast
 curl -X GET "http://localhost:3001/api/predict/incidents?barangay=SANTA%20CRUZ&municipality=LUBAO&province=PAMPANGA&crimeType=DRUGS"

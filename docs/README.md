@@ -79,9 +79,17 @@ This folder contains comprehensive documentation for the Crime Analytics system,
 
 ### Current Statistics (Lubao Municipality)
 - **Total Barangays**: 44
-- **High Risk**: 1 barangay
-- **Medium Risk**: 1 barangay
+- **High Risk**: 1 barangay (SAN NICOLAS 1ST)
+- **Medium Risk**: 1 barangay (SANTA LUCIA)
 - **Low Risk**: 42 barangays (including 10 with zero crimes)
+
+### API Endpoints
+- **Descriptive Analytics**: `/api/analytics/descriptive/*`
+- **Crime Management**: `/api/crimes/*`
+- **Barangay Data**: `/api/barangays/*`
+- **Predictive Analytics**: `/api/predict/*`
+- **Data Management**: `/api/data/*`
+- **Data Import**: `/api/import/*`
 
 ## 🔧 Technical Implementation
 
