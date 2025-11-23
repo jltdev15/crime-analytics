@@ -144,11 +144,21 @@
             </button>
           </div>
 
-          <div class="flex items-center gap-3 mb-4">
+          <div class="flex items-center gap-3 mb-4 flex-wrap">
             <button @click="generateRecommendations" :disabled="loading"
-                    class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                    class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
               <span v-if="loading">Generating...</span>
               <span v-else>Generate Recommendations</span>
+            </button>
+            <button @click="generatePDFReport" :disabled="loading || recommendations.length === 0"
+                    class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Generate Report
             </button>
             <p class="text-sm text-gray-500">Runs AI on current descriptive data and updates the list below.</p>
           </div>
@@ -195,45 +205,45 @@
                 <div v-if="(group.recommendations || []).length === 0" class="text-sm text-gray-500">No recommendations for this prediction with current filters.</div>
 
                 <div v-else class="space-y-4">
-                  <div v-for="rec in (group.recommendations || [])" :key="rec._id" class="border border-gray-200 rounded-lg p-4">
+                  <div v-for="rec in (group.recommendations || [])" :key="rec._id" class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-start justify-between mb-3">
                       <div class="flex-1">
-                        <div class="flex items-center gap-3 mb-1">
+                        <div class="flex items-center gap-3 mb-2 flex-wrap">
                           <h5 class="text-md font-semibold text-gray-900">{{ rec.title }}</h5>
                           <span :class="getPriorityBadgeClass(rec.priority)" class="px-2 py-1 text-xs font-semibold rounded-full">{{ rec.priority }}</span>
-                          <span :class="getStatusBadgeClass(rec.status)" class="px-2 py-1 text-xs font-semibold rounded-full">{{ rec.status }}</span>
+                          <span :class="getStatusBadgeClass(rec.status)" class="px-2 py-1 text-xs font-semibold rounded-full capitalize">{{ rec.status }}</span>
+                          <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 capitalize">{{ rec.category }}</span>
                         </div>
-                        <p class="text-sm text-gray-700">{{ rec.description }}</p>
+                        <p class="text-sm text-gray-700 mb-2">{{ rec.description }}</p>
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-2 mb-2">
+                          <p class="text-xs font-medium text-blue-800 mb-1">Rationale:</p>
+                          <p class="text-xs text-blue-700">{{ rec.rationale }}</p>
+                        </div>
                       </div>
                       <div class="ml-4 text-right">
-                        <div class="text-xs text-gray-500">Confidence</div>
+                        <div class="text-xs text-gray-500 mb-1">Confidence</div>
                         <div class="text-sm font-semibold text-gray-900">{{ Math.round(rec.confidence * 100) }}%</div>
                       </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                      <div>
-                        <div class="text-xs font-medium text-gray-700">Category</div>
-                        <div class="text-xs text-gray-600 capitalize">{{ rec.category }}</div>
+                      <div class="bg-gray-50 rounded-lg p-2">
+                        <div class="text-xs font-medium text-gray-700 mb-1">Implementation Cost</div>
+                        <div class="text-xs font-semibold" :class="getCostClass(rec.implementationCost)">{{ rec.implementationCost }}</div>
                       </div>
-                      <div>
-                        <div class="text-xs font-medium text-gray-700">Cost</div>
-                        <div class="text-xs text-gray-600">{{ rec.implementationCost }}</div>
+                      <div class="bg-gray-50 rounded-lg p-2">
+                        <div class="text-xs font-medium text-gray-700 mb-1">Timeframe</div>
+                        <div class="text-xs font-semibold text-gray-900">{{ rec.timeframe }}</div>
                       </div>
-                      <div>
-                        <div class="text-xs font-medium text-gray-700">Timeframe</div>
-                        <div class="text-xs text-gray-600">{{ rec.timeframe }}</div>
+                      <div class="bg-gray-50 rounded-lg p-2">
+                        <div class="text-xs font-medium text-gray-700 mb-1">Category</div>
+                        <div class="text-xs font-semibold text-gray-900 capitalize">{{ rec.category }}</div>
                       </div>
                     </div>
 
-                    <div class="mb-3">
-                      <div class="text-xs font-medium text-gray-700 mb-0.5">Expected Impact</div>
-                      <div class="text-xs text-gray-600">{{ rec.expectedImpact }}</div>
-                    </div>
-
-                    <div class="mb-3">
-                      <div class="text-xs font-medium text-gray-700 mb-0.5">Rationale</div>
-                      <div class="text-xs text-gray-600">{{ rec.rationale }}</div>
+                    <div class="mb-3 bg-green-50 border-l-4 border-green-400 p-2">
+                      <div class="text-xs font-medium text-green-800 mb-1">Expected Impact</div>
+                      <div class="text-xs text-green-700">{{ rec.expectedImpact }}</div>
                     </div>
 
                     <div v-if="rec.successMetrics && Array.isArray(rec.successMetrics) && rec.successMetrics.length > 0" class="mb-3">
@@ -246,8 +256,7 @@
                     <div class="flex items-center justify-between pt-3 border-t border-gray-200">
                       <div class="text-xs text-gray-500">Created: {{ formatDate(rec.createdAt) }}</div>
                       <div class="flex gap-2">
-                        <button v-if="rec.status === 'pending'" @click="updateStatus(rec._id, 'approved')" class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">Approve</button>
-                        <button v-if="rec.status === 'approved'" @click="updateStatus(rec._id, 'implemented')" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Mark Implemented</button>
+                        <button v-if="rec.status === 'pending' || rec.status === 'approved'" @click="updateStatus(rec._id, 'implemented')" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Mark as Implemented</button>
                         <button @click="viewDetails(rec)" class="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">View Details</button>
                       </div>
                     </div>
@@ -383,15 +392,10 @@
                 Last updated: {{ formatDate(selectedRecommendation.updatedAt || selectedRecommendation.createdAt) }}
               </div>
               <div class="flex gap-3">
-                <button v-if="selectedRecommendation.status === 'pending'" 
-                        @click="updateStatus(selectedRecommendation._id, 'approved')" 
-                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                  Approve
-                </button>
-                <button v-if="selectedRecommendation.status === 'approved'" 
+                <button v-if="selectedRecommendation.status === 'pending' || selectedRecommendation.status === 'approved'" 
                         @click="updateStatus(selectedRecommendation._id, 'implemented')" 
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Mark Implemented
+                  Mark as Implemented
                 </button>
                 <button @click="closeModal" 
                         class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
@@ -623,6 +627,579 @@ const getStatusBadgeClass = (status: string) => {
       return 'bg-red-100 text-red-800'
     default:
       return 'bg-gray-100 text-gray-800'
+  }
+}
+
+const getCostClass = (cost: string) => {
+  switch (cost) {
+    case 'Low':
+      return 'text-green-600'
+    case 'Medium':
+      return 'text-yellow-600'
+    case 'High':
+      return 'text-red-600'
+    default:
+      return 'text-gray-600'
+  }
+}
+
+const generatePDFReport = () => {
+  try {
+    // Get all recommendations (flatten if grouped)
+    const allRecommendations = groupByPrediction.value
+      ? predictionGroups.value.reduce((acc: any[], group: any) => {
+          const recs = (group.recommendations || []).map((rec: any) => ({
+            ...rec,
+            barangay: group.prediction.barangay,
+            municipality: group.prediction.municipality,
+            crimeType: group.prediction.crimeType,
+            riskLevel: group.prediction.riskLevel,
+            probability: group.prediction.probability,
+            confidence: group.prediction.confidence
+          }))
+          return acc.concat(recs)
+        }, [])
+      : recommendations.value
+
+    // Filter by current filters
+    let filteredRecs = allRecommendations.filter((rec: any) => {
+      if (filters.priority && rec.priority !== filters.priority) return false
+      if (filters.category && rec.category !== filters.category) return false
+      if (filters.status && rec.status !== filters.status) return false
+      if (filters.barangay && !rec.barangay?.toLowerCase().includes(filters.barangay.toLowerCase())) return false
+      return true
+    })
+
+    // Calculate additional statistics
+    const categoryBreakdown: Record<string, number> = {}
+    const barangayBreakdown: Record<string, number> = {}
+    const costBreakdown: Record<string, number> = {}
+    let totalConfidence = 0
+    let avgConfidence = 0
+
+    filteredRecs.forEach((rec: any) => {
+      // Category breakdown
+      const cat = rec.category || 'Other'
+      categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1
+      
+      // Barangay breakdown
+      const brgy = rec.barangay || 'Unknown'
+      barangayBreakdown[brgy] = (barangayBreakdown[brgy] || 0) + 1
+      
+      // Cost breakdown
+      const cost = rec.implementationCost || 'Unknown'
+      costBreakdown[cost] = (costBreakdown[cost] || 0) + 1
+      
+      // Average confidence
+      if (rec.confidence) {
+        totalConfidence += rec.confidence
+      }
+    })
+
+    avgConfidence = filteredRecs.length > 0 ? Math.round((totalConfidence / filteredRecs.length) * 100) : 0
+
+    // Get top barangays
+    const topBarangays = Object.entries(barangayBreakdown)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }))
+
+    // Create print window
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      alert('Please allow popups to generate PDF report')
+      return
+    }
+
+    // Generate HTML content with compact monochrome styling
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Prescriptive Analytics Report - ${new Date().toLocaleDateString()}</title>
+  <style>
+    @media print {
+      @page { 
+        margin: 0.5cm;
+        size: legal;
+      }
+      body { margin: 0; }
+      .page-break { page-break-before: always; }
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 0;
+      margin: 0;
+      color: #000000;
+      line-height: 1.4;
+      background: #ffffff;
+      font-size: 11px;
+    }
+    .report-container {
+      max-width: 216mm;
+      margin: 0 auto;
+      padding: 10mm;
+      background: white;
+    }
+    .header {
+      background: #000000;
+      color: #ffffff;
+      padding: 15px 20px;
+      margin: -10mm -10mm 15px -10mm;
+      border-bottom: 2px solid #000000;
+    }
+    .header h1 {
+      margin: 0 0 5px 0;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .header-subtitle {
+      font-size: 11px;
+      margin: 3px 0;
+      color: #cccccc;
+    }
+    .header-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #666666;
+      font-size: 10px;
+    }
+    .executive-summary {
+      background: #f5f5f5;
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 1px solid #cccccc;
+    }
+    .executive-summary h2 {
+      color: #000000;
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 2px solid #000000;
+      padding-bottom: 5px;
+    }
+    .stats-section {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .stat-box {
+      background: white;
+      padding: 10px;
+      border: 1px solid #cccccc;
+    }
+    .stat-box h3 {
+      margin: 0 0 8px 0;
+      font-size: 10px;
+      color: #000000;
+      text-transform: uppercase;
+      font-weight: 700;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 3px;
+    }
+    .stat-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .stat-list li {
+      padding: 4px 0;
+      border-bottom: 1px solid #e5e5e5;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+    }
+    .stat-list li:last-child {
+      border-bottom: none;
+    }
+    .stat-label {
+      color: #666666;
+    }
+    .stat-value {
+      font-weight: 700;
+      color: #000000;
+    }
+    .section-header {
+      margin: 20px 0 12px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #000000;
+    }
+    .section-header h2 {
+      margin: 0;
+      font-size: 14px;
+      color: #000000;
+      font-weight: 700;
+    }
+    .recommendation {
+      page-break-inside: avoid;
+      background: white;
+      border: 1px solid #cccccc;
+      padding: 12px;
+      margin-bottom: 15px;
+      position: relative;
+    }
+    .recommendation::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: #000000;
+    }
+    .recommendation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #cccccc;
+    }
+    .recommendation-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .recommendation-number {
+      display: inline-block;
+      background: #000000;
+      color: white;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 20px;
+      font-weight: 700;
+      font-size: 10px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .badge-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border: 1px solid #666666;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      background: #f5f5f5;
+      color: #000000;
+    }
+    .confidence-badge {
+      text-align: center;
+      padding: 8px;
+      background: #f5f5f5;
+      border: 1px solid #cccccc;
+      min-width: 60px;
+    }
+    .confidence-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #000000;
+      line-height: 1;
+    }
+    .confidence-label {
+      font-size: 8px;
+      color: #666666;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .info-item {
+      background: #f5f5f5;
+      padding: 8px;
+      border: 1px solid #cccccc;
+    }
+    .info-label {
+      font-size: 8px;
+      color: #666666;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .info-value {
+      font-size: 11px;
+      font-weight: 700;
+      color: #000000;
+    }
+    .section {
+      margin: 10px 0;
+    }
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #cccccc;
+      padding-bottom: 3px;
+    }
+    .section-content {
+      font-size: 10px;
+      color: #333333;
+      line-height: 1.5;
+      background: #f9f9f9;
+      padding: 8px;
+      border-left: 2px solid #666666;
+    }
+    .metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .metric-tag {
+      background: #f5f5f5;
+      color: #000000;
+      padding: 4px 8px;
+      border: 1px solid #cccccc;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .risk-factors {
+      background: #f5f5f5;
+      border-left: 2px solid #666666;
+      padding: 8px;
+    }
+    .risk-factors .section-content {
+      background: transparent;
+      border: none;
+      padding: 0;
+      color: #000000;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 15px;
+      border-top: 2px solid #000000;
+      text-align: center;
+      color: #666666;
+      font-size: 9px;
+    }
+    .footer-logo {
+      font-size: 11px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 5px;
+    }
+    .analysis-section {
+      background: #f5f5f5;
+      padding: 12px;
+      margin: 15px 0;
+      border: 1px solid #cccccc;
+    }
+    .analysis-section h3 {
+      margin: 0 0 10px 0;
+      color: #000000;
+      font-size: 11px;
+      font-weight: 700;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 3px;
+    }
+    .analysis-section h4 {
+      margin: 0 0 6px 0;
+      color: #000000;
+      font-size: 10px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="header">
+      <h1>Prescriptive Analytics Report</h1>
+      <div class="header-subtitle">Crime Prevention Recommendations & Strategic Action Plans</div>
+      <div class="header-subtitle">AI-Powered Analysis & Recommendations System</div>
+      <div class="header-meta">
+        <div><strong>Report Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        <div><strong>Generated:</strong> ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+    </div>
+
+    <div class="executive-summary">
+      <h2>Executive Summary</h2>
+      <div class="stats-section">
+        <div class="stat-box">
+          <h3>Priority Distribution</h3>
+          <ul class="stat-list">
+            <li><span class="stat-label">Critical:</span> <span class="stat-value">${priorityCounts.critical}</span></li>
+            <li><span class="stat-label">High:</span> <span class="stat-value">${priorityCounts.high}</span></li>
+            <li><span class="stat-label">Medium:</span> <span class="stat-value">${priorityCounts.medium}</span></li>
+            <li><span class="stat-label">Low:</span> <span class="stat-value">${priorityCounts.low}</span></li>
+          </ul>
+        </div>
+        <div class="stat-box">
+          <h3>Status Distribution</h3>
+          <ul class="stat-list">
+            <li><span class="stat-label">Pending:</span> <span class="stat-value">${statusCounts.pending}</span></li>
+            <li><span class="stat-label">Approved:</span> <span class="stat-value">${statusCounts.approved}</span></li>
+            <li><span class="stat-label">Implemented:</span> <span class="stat-value">${statusCounts.implemented}</span></li>
+            <li><span class="stat-label">Rejected:</span> <span class="stat-value">${statusCounts.rejected}</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="analysis-section">
+        <h3>Key Insights</h3>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+          <div>
+            <h4>Category Breakdown</h4>
+            <ul class="stat-list">
+              ${Object.entries(categoryBreakdown).map(([cat, count]) => `
+                <li><span class="stat-label">${cat.charAt(0).toUpperCase() + cat.slice(1)}:</span> <span class="stat-value">${count}</span></li>
+              `).join('')}
+            </ul>
+          </div>
+          <div>
+            <h4>Implementation Cost Distribution</h4>
+            <ul class="stat-list">
+              ${Object.entries(costBreakdown).map(([cost, count]) => `
+                <li><span class="stat-label">${cost}:</span> <span class="stat-value">${count}</span></li>
+              `).join('')}
+            </ul>
+          </div>
+        </div>
+        ${topBarangays.length > 0 ? `
+          <div style="margin-top: 12px;">
+            <h4>Top Barangays by Recommendations</h4>
+            <ul class="stat-list">
+              ${topBarangays.map(brgy => `
+                <li><span class="stat-label">${brgy.name}:</span> <span class="stat-value">${brgy.count} recommendation(s)</span></li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        <div style="margin-top: 12px; padding: 8px; background: white; border: 1px solid #cccccc; border-left: 3px solid #000000;">
+          <strong>Average Confidence Level:</strong> 
+          <span style="font-size: 14px; font-weight: 700; margin-left: 8px;">${avgConfidence}%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2>Detailed Recommendations</h2>
+    </div>
+  
+    ${filteredRecs.map((rec: any, index: number) => `
+      <div class="recommendation">
+        <div class="recommendation-header">
+          <div style="flex: 1;">
+            <div class="recommendation-title">
+              <span class="recommendation-number">${index + 1}</span>
+              ${rec.title || 'Untitled Recommendation'}
+            </div>
+            <div class="badge-container">
+              <span class="badge">${rec.priority || 'Medium'} Priority</span>
+              <span class="badge">${(rec.status || 'pending').charAt(0).toUpperCase() + (rec.status || 'pending').slice(1)}</span>
+              <span class="badge">${(rec.category || '').charAt(0).toUpperCase() + (rec.category || '').slice(1)}</span>
+              ${rec.barangay ? `<span class="badge">${rec.barangay}, ${rec.municipality}</span>` : ''}
+              ${rec.riskLevel ? `<span class="badge">${rec.riskLevel} Risk</span>` : ''}
+            </div>
+          </div>
+          <div class="confidence-badge">
+            <div class="confidence-value">${rec.confidence ? Math.round(rec.confidence * 100) : 0}%</div>
+            <div class="confidence-label">Confidence</div>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Implementation Cost</div>
+            <div class="info-value">${rec.implementationCost || 'N/A'}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Timeframe</div>
+            <div class="info-value">${rec.timeframe || 'N/A'}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Crime Type</div>
+            <div class="info-value">${rec.crimeType || 'N/A'}</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Description</div>
+          <div class="section-content">${rec.description || 'No description provided.'}</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Rationale & Analysis</div>
+          <div class="section-content">${rec.rationale || 'No rationale provided.'}</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Expected Impact</div>
+          <div class="section-content">${rec.expectedImpact || 'No impact assessment provided.'}</div>
+        </div>
+
+        ${rec.successMetrics && rec.successMetrics.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Success Metrics & KPIs</div>
+            <div class="metrics">
+              ${rec.successMetrics.map((metric: string) => `<span class="metric-tag">${metric}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${rec.riskFactors && rec.riskFactors.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Risk Factors & Considerations</div>
+            <div class="risk-factors">
+              <div class="section-content">
+                ${rec.riskFactors.map((factor: string) => factor).join(', ')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${rec.createdAt ? `
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #cccccc; display: flex; justify-content: space-between; font-size: 9px; color: #666666;">
+            <span><strong>Created:</strong> ${formatDate(rec.createdAt)}</span>
+            ${rec.updatedAt && rec.updatedAt !== rec.createdAt ? `<span><strong>Last Updated:</strong> ${formatDate(rec.updatedAt)}</span>` : ''}
+          </div>
+        ` : ''}
+      </div>
+    `).join('')}
+
+    <div class="footer">
+      <div class="footer-logo">Crime Prevention Analytics System</div>
+      <p>This report was generated by the AI-Powered Crime Prevention Analytics System</p>
+      <p><strong>Report Period:</strong> ${new Date().toLocaleDateString()} | <strong>Total Recommendations Analyzed:</strong> ${filteredRecs.length}</p>
+      <p style="margin-top: 8px; font-size: 9px;">For questions or additional information, please contact the system administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print()
+    }, 250)
+  } catch (error) {
+    console.error('Error generating PDF report:', error)
+    alert('Failed to generate PDF report. Please try again.')
   }
 }
 

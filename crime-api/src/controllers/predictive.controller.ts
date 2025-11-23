@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
-import { NewPrediction, Recommendation } from '../models';
+import { NewPrediction, Recommendation, Crime } from '../models';
 import { PredictiveService } from '../services/predictive.service';
 import { EnhancedPredictiveService } from '../services/enhanced-predictive.service';
 import { asyncHandler, CustomError } from '../middleware/error.middleware';
+import { subMonths, format, parseISO } from 'date-fns';
 
 export class PredictiveController {
   private predictiveService: PredictiveService;
@@ -108,20 +109,131 @@ export class PredictiveController {
       modelConfidence = typeof perf?.neuralNetwork?.confidence === 'number' ? perf.neuralNetwork.confidence : 0;
     } catch (_) {}
 
-    // Calculate predicted change percentage (simplified)
+    // Calculate predicted change percentage by comparing forecast to historical data
+    // Use 12 months of historical data for a more stable baseline comparison
     const predictions = await NewPrediction.find({}).limit(100);
-    const predictedChanges = predictions.map(p => {
-      if (p.forecast.length >= 2) {
-        const firstMonth = p.forecast[0]?.predicted || 0;
-        const lastMonth = p.forecast[p.forecast.length - 1]?.predicted || 0;
-        return ((lastMonth - firstMonth) / Math.max(1, firstMonth)) * 100;
+    const now = new Date();
+    const twelveMonthsAgo = subMonths(now, 12);
+    
+    // Get all historical data in one efficient query (12 months for better baseline)
+    const historicalData = await Crime.aggregate([
+      {
+        $match: {
+          confinementDate: {
+            $gte: twelveMonthsAgo,
+            $lt: now
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            barangay: '$barangay',
+            municipality: '$municipality',
+            province: '$province',
+            crimeType: '$type',
+            year: { $year: '$confinementDate' },
+            month: { $month: '$confinementDate' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            barangay: '$_id.barangay',
+            municipality: '$_id.municipality',
+            province: '$_id.province',
+            crimeType: '$_id.crimeType'
+          },
+          monthlyCounts: { $push: '$count' }
+        }
       }
-      return 0;
+    ]);
+
+    // Create a map for quick lookup
+    const historicalMap = new Map<string, number>();
+    historicalData.forEach((item) => {
+      const key = `${item._id.barangay}|${item._id.municipality}|${item._id.province}|${item._id.crimeType}`;
+      const avg = item.monthlyCounts.reduce((sum: number, count: number) => sum + count, 0) / item.monthlyCounts.length;
+      historicalMap.set(key, avg);
     });
 
-    const avgPredictedChange = predictedChanges.length > 0 
-      ? predictedChanges.reduce((a, b) => a + b, 0) / predictedChanges.length 
-      : 0;
+    // Calculate changes for each prediction
+    const predictedChanges = predictions
+      .filter(p => p.forecast && p.forecast.length > 0)
+      .map((p) => {
+        // Calculate average of forecasted months
+        const forecastAvg = p.forecast.reduce((sum, f) => sum + (f.predicted || 0), 0) / p.forecast.length;
+
+        // Look up historical average
+        const key = `${p.barangay}|${p.municipality}|${p.province}|${p.crimeType}`;
+        const historicalAvg = historicalMap.get(key) || 0;
+
+        // Calculate percentage change: (forecast - historical) / historical * 100
+        if (historicalAvg === 0) {
+          // If no historical data but forecast exists, indicate potential new crime type
+          // Return a small positive value to indicate new activity, but cap it
+          return forecastAvg > 0 ? Math.min(50, forecastAvg * 10) : 0;
+        }
+
+        // Calculate change percentage
+        const changePercent = ((forecastAvg - historicalAvg) / historicalAvg) * 100;
+        
+        // Round to 1 decimal place for cleaner display
+        return Math.round(changePercent * 10) / 10;
+      })
+      .filter(change => !isNaN(change) && isFinite(change)); // Filter out invalid values
+
+    // Calculate weighted average (weight by historical volume to avoid small numbers skewing results)
+    let totalWeight = 0;
+    let weightedSum = 0;
+    
+    predictions
+      .filter(p => p.forecast && p.forecast.length > 0)
+      .forEach((p) => {
+        const key = `${p.barangay}|${p.municipality}|${p.province}|${p.crimeType}`;
+        const historicalAvg = historicalMap.get(key) || 0;
+        const forecastAvg = p.forecast.reduce((sum, f) => sum + (f.predicted || 0), 0) / p.forecast.length;
+        
+        if (historicalAvg > 0) {
+          const weight = historicalAvg; // Weight by historical volume
+          const changePercent = ((forecastAvg - historicalAvg) / historicalAvg) * 100;
+          if (!isNaN(changePercent) && isFinite(changePercent)) {
+            weightedSum += changePercent * weight;
+            totalWeight += weight;
+          }
+        }
+      });
+
+    // Use weighted average if we have weights, otherwise use simple average
+    let avgPredictedChange = totalWeight > 0
+      ? weightedSum / totalWeight
+      : predictedChanges.length > 0 
+        ? predictedChanges.reduce((a, b) => a + b, 0) / predictedChanges.length 
+        : 0;
+
+    // If the trend is very close to 0 (within 0.5%), check the forecast trend itself
+    // This shows whether crime is expected to increase/decrease over the forecast period
+    if (Math.abs(avgPredictedChange) < 0.5 && predictions.length > 0) {
+      const forecastTrends = predictions
+        .filter(p => p.forecast && p.forecast.length >= 2)
+        .map((p) => {
+          const firstMonth = p.forecast[0]?.predicted || 0;
+          const lastMonth = p.forecast[p.forecast.length - 1]?.predicted || 0;
+          if (firstMonth === 0) return 0;
+          return ((lastMonth - firstMonth) / firstMonth) * 100;
+        })
+        .filter(trend => !isNaN(trend) && isFinite(trend));
+      
+      if (forecastTrends.length > 0) {
+        const forecastTrend = forecastTrends.reduce((a, b) => a + b, 0) / forecastTrends.length;
+        // Use forecast trend if it's more meaningful (at least 1% change)
+        if (Math.abs(forecastTrend) >= 1) {
+          avgPredictedChange = forecastTrend;
+        }
+      }
+    }
 
     res.json({
       totalPredictions,

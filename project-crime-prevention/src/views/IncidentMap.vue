@@ -316,7 +316,9 @@ const initMap = () => {
       maxZoom: 19
     })
     
-    tileLayer.addTo(map.value)
+    if (map.value) {
+      tileLayer.addTo(map.value as L.Map)
+    }
     console.log('Tile layer added')
     
     // Force map to resize after a short delay

@@ -63,6 +63,19 @@ export class EnhancedPredictiveService {
     crimeType: string,
     months: number = 6
   ): Promise<ForecastResult[]> {
+    // Get historical data to calculate realistic baseline for validation
+    const historicalData = await this.getHistoricalData(barangay, municipality, province, crimeType);
+    
+    // Calculate monthly average from time series
+    const timeSeries = this.prepareTimeSeries(historicalData);
+    const historicalMean = timeSeries.length > 0
+      ? timeSeries.map(t => t.count).reduce((a, b) => a + b, 0) / timeSeries.length
+      : historicalData.length > 0 
+        ? historicalData.length / Math.max(12, timeSeries.length || 12) // Rough estimate if no time series
+        : 0;
+    const isLowFrequency = historicalMean < 2;
+    const fallbackValue = historicalMean > 0 ? Math.max(0, Math.round(historicalMean * 10) / 10) : 0;
+    
     try {
       if (this.useNeuralNetwork) {
         // Try neural network first
@@ -70,23 +83,38 @@ export class EnhancedPredictiveService {
           barangay, municipality, province, crimeType, months
         );
         
-        // Validate neural network output and keep variation minimal for stability
+        // Validate neural network output using historical baseline, not default 3
         const validForecast = nnForecast.map((f, index) => {
-          let predicted = isNaN(f.predicted) || !isFinite(f.predicted) ? 3 : f.predicted;
+          let predicted = isNaN(f.predicted) || !isFinite(f.predicted) ? fallbackValue : f.predicted;
           const confidence = isNaN(f.confidence) || !isFinite(f.confidence) ? 0.5 : f.confidence;
           
-          // Minimal seasonal smoothing only
-          if (index > 0) {
+          // For low-frequency crimes, use minimal variation
+          if (index > 0 && !isLowFrequency) {
             const additionalVariation = Math.sin((index * Math.PI) / 3) * 0.05;
-            predicted = Math.max(1, Math.round(predicted * (1 + additionalVariation)));
+            predicted = predicted * (1 + additionalVariation);
           }
+          
+          // Cap predictions based on historical data
+          const maxCap = isLowFrequency 
+            ? Math.min(Math.max(historicalMean * 2, 0), 3)
+            : Math.max(historicalMean * 1.5, 0);
+          predicted = Math.min(predicted, maxCap);
+          
+          // Round appropriately based on frequency
+          const roundedPredicted = historicalMean < 0.5 && historicalMean > 0
+            ? Math.round(predicted * 10) / 10
+            : Math.max(0, Math.round(predicted));
           
           return {
             month: f.month,
-            predicted: Math.max(0, Math.round(predicted)),
-            lower: Math.max(0, Math.round(predicted * 0.8)),
-            upper: Math.round(predicted * 1.2),
-            confidence: Math.min(1, Math.max(0, confidence)),
+            predicted: roundedPredicted,
+            lower: Math.max(0, historicalMean < 0.5 && historicalMean > 0 
+              ? Math.round((roundedPredicted * 0.8) * 10) / 10 
+              : Math.round(roundedPredicted * 0.8)),
+            upper: historicalMean < 0.5 && historicalMean > 0
+              ? Math.round((roundedPredicted * 1.2) * 10) / 10
+              : Math.round(roundedPredicted * 1.2),
+            confidence: Math.min(1, Math.max(0, isLowFrequency ? confidence * 0.8 : confidence)),
             method: 'neural-network' as const
           };
         });
@@ -121,17 +149,41 @@ export class EnhancedPredictiveService {
     const historicalData = await this.getHistoricalData(barangay, municipality, province, crimeType);
     
     if (historicalData.length < 3) {
-      // Use actual crime count as base value for more realistic forecasts
-      const baseValue = Math.max(1, Math.min(10, historicalData.length));
-      return this.generateDefaultForecast(months, baseValue);
+      // Calculate monthly average instead of using total count
+      // This prevents inflating predictions for low-frequency crimes
+      const timeSeries = this.prepareTimeSeries(historicalData);
+      let baseValue = 0;
+      
+      if (timeSeries.length > 0) {
+        // Use average monthly count
+        const monthlyCounts = timeSeries.map(t => t.count);
+        baseValue = monthlyCounts.reduce((a, b) => a + b, 0) / monthlyCounts.length;
+      } else if (historicalData.length > 0) {
+        // Rough estimate: total cases / estimated months of data (assume at least 1 month)
+        // For very few cases, use a conservative estimate
+        baseValue = historicalData.length / Math.max(1, timeSeries.length || 1);
+      }
+      
+      // Don't force minimum of 1 - allow 0 for crimes that rarely occur
+      baseValue = Math.max(0, Math.round(baseValue * 10) / 10);
+      const isLowFrequency = baseValue < 2;
+      
+      return this.generateDefaultForecast(months, baseValue, isLowFrequency);
     }
 
     const timeSeries = this.prepareTimeSeries(historicalData);
     const forecast = this.linearRegressionForecast(timeSeries, months);
     
+    // Determine if low-frequency for confidence adjustment
+    const monthlyCounts = timeSeries.map(t => t.count);
+    const avgMonthly = monthlyCounts.length > 0 
+      ? monthlyCounts.reduce((a, b) => a + b, 0) / monthlyCounts.length 
+      : 0;
+    const isLowFrequency = avgMonthly < 2;
+    
     return forecast.map(f => ({
       ...f,
-      confidence: 0.8,
+      confidence: isLowFrequency ? 0.6 : 0.8,
       method: 'statistical' as const
     }));
   }
@@ -515,10 +567,19 @@ export class EnhancedPredictiveService {
   }
 
   private linearRegressionForecast(timeSeries: TimeSeriesData[], months: number): ForecastResult[] {
+    // Calculate historical statistics for realistic capping
+    const historicalCounts = timeSeries.map(t => t.count);
+    const historicalMean = historicalCounts.length > 0 ? ss.mean(historicalCounts) : 0;
+    const historicalMax = historicalCounts.length > 0 ? Math.max(...historicalCounts) : 0;
+    const historicalMin = historicalCounts.length > 0 ? Math.min(...historicalCounts) : 0;
+    
+    // Determine if this is a low-frequency crime (average < 2 per month)
+    const isLowFrequency = historicalMean < 2;
+    
     if (timeSeries.length < 2) {
-      // Use average of time series data as base value
-      const avgValue = timeSeries.length > 0 ? Math.round(ss.mean(timeSeries.map(t => t.count))) : 3;
-      return this.generateDefaultForecast(months, Math.max(1, avgValue));
+      // Use actual average, not a default of 3
+      const avgValue = historicalMean > 0 ? Math.max(0, Math.round(historicalMean * 10) / 10) : 0;
+      return this.generateDefaultForecast(months, avgValue, isLowFrequency);
     }
 
     const xValues = timeSeries.map((_, index) => index);
@@ -529,7 +590,9 @@ export class EnhancedPredictiveService {
       .filter(([x, y]) => !isNaN(x) && !isNaN(y) && isFinite(x) && isFinite(y));
     
     if (validDataPoints.length < 2) {
-      return this.generateDefaultForecast(months, 3);
+      // Use actual average instead of default 3
+      const avgValue = historicalMean > 0 ? Math.max(0, Math.round(historicalMean * 10) / 10) : 0;
+      return this.generateDefaultForecast(months, avgValue, isLowFrequency);
     }
 
     const regression = ss.linearRegression(validDataPoints);
@@ -543,25 +606,54 @@ export class EnhancedPredictiveService {
       const futureIndex = lastIndex + i;
       let predicted = (regression.m || 0) * futureIndex + (regression.b || 0);
       
-      // Add seasonal variation to make it more realistic
-      const monthOfYear = addMonths(lastDate, i).getMonth();
-      const seasonalVariation = Math.sin((monthOfYear / 12) * 2 * Math.PI) * 0.2;
-      predicted = predicted * (1 + seasonalVariation);
+      // For low-frequency crimes, use minimal or no seasonal variation
+      // For higher frequency crimes, apply seasonal variation
+      if (!isLowFrequency) {
+        const monthOfYear = addMonths(lastDate, i).getMonth();
+        const seasonalVariation = Math.sin((monthOfYear / 12) * 2 * Math.PI) * 0.2;
+        predicted = predicted * (1 + seasonalVariation);
+      } else {
+        // For low-frequency crimes, use very minimal variation (max 10%)
+        const monthOfYear = addMonths(lastDate, i).getMonth();
+        const seasonalVariation = Math.sin((monthOfYear / 12) * 2 * Math.PI) * 0.05;
+        predicted = predicted * (1 + seasonalVariation);
+      }
       
-      // Ensure predicted value is valid
-      const validPredicted = isNaN(predicted) || !isFinite(predicted) ? 3 : Math.max(0, Math.round(predicted));
+      // Cap predictions based on historical data to prevent unrealistic inflation
+      // For low-frequency crimes, cap at 2x the historical max or 3, whichever is lower
+      // For higher frequency crimes, cap at 1.5x the historical max
+      const maxCap = isLowFrequency 
+        ? Math.min(Math.max(historicalMax * 2, historicalMean * 2), 3)
+        : Math.max(historicalMax * 1.5, historicalMean * 1.5);
+      
+      // Ensure predicted value is valid and capped
+      let validPredicted = isNaN(predicted) || !isFinite(predicted) 
+        ? Math.max(0, Math.round(historicalMean * 10) / 10) 
+        : Math.max(0, Math.round(predicted));
+      
+      // Apply cap
+      validPredicted = Math.min(validPredicted, maxCap);
+      
+      // For very low averages (< 0.5), round to nearest 0.1 to allow fractional predictions
+      if (historicalMean < 0.5) {
+        validPredicted = Math.round(validPredicted * 10) / 10;
+      } else {
+        validPredicted = Math.round(validPredicted);
+      }
       
       const stdError = Math.sqrt(ss.sampleVariance(yValues)) * (1 - rSquared);
-      const margin = isNaN(stdError) || !isFinite(stdError) ? 2 : stdError * 1.96;
+      const margin = isNaN(stdError) || !isFinite(stdError) 
+        ? Math.max(0.1, historicalMean * 0.3) 
+        : Math.max(0.1, stdError * 1.96);
       
       const forecastDate = addMonths(lastDate, i);
       
       forecast.push({
         month: format(forecastDate, 'yyyy-MM'),
         predicted: validPredicted,
-        lower: Math.max(0, Math.round(validPredicted - margin)),
-        upper: Math.round(validPredicted + margin),
-        confidence: 0.8,
+        lower: Math.max(0, Math.round((validPredicted - margin) * 10) / 10),
+        upper: Math.round((validPredicted + margin) * 10) / 10,
+        confidence: isLowFrequency ? 0.6 : 0.8, // Lower confidence for low-frequency crimes
         method: 'statistical'
       });
     }
@@ -569,41 +661,66 @@ export class EnhancedPredictiveService {
     return forecast;
   }
 
-  private generateDefaultForecast(months: number, baseValue: number = 3): ForecastResult[] {
+  private generateDefaultForecast(months: number, baseValue: number = 0, isLowFrequency: boolean = false): ForecastResult[] {
     const forecast: ForecastResult[] = [];
     const startDate = new Date();
     
-    // Ensure baseValue is a valid number
-    const validBaseValue = isNaN(baseValue) || baseValue <= 0 ? 3 : Math.max(1, baseValue);
+    // Ensure baseValue is a valid number, but don't default to 3 - use 0 for no data
+    const validBaseValue = isNaN(baseValue) || baseValue < 0 ? 0 : baseValue;
     
-    // Create a more realistic trend with seasonal patterns
-    const trend = 0.1; // Slight upward trend
-    const seasonalAmplitude = 0.4; // Seasonal variation amplitude
+    // For low-frequency crimes, use minimal variations
+    // For higher frequency crimes, use normal variations
+    const trend = isLowFrequency ? 0 : 0.1; // No trend for low-frequency crimes
+    const seasonalAmplitude = isLowFrequency ? 0.1 : 0.4; // Minimal seasonal variation for low-frequency
+    const randomAmplitude = isLowFrequency ? 0.1 : 0.3; // Minimal random variation for low-frequency
     
     for (let i = 1; i <= months; i++) {
       const forecastDate = addMonths(startDate, i);
       
-      // Create more realistic variations
+      // Create variations based on crime frequency
       const monthOfYear = forecastDate.getMonth(); // 0-11
       const seasonalVariation = Math.sin((monthOfYear / 12) * 2 * Math.PI) * seasonalAmplitude;
-      const trendVariation = trend * i; // Gradual trend over time
-      const randomVariation = (Math.random() - 0.5) * 0.3; // Reduced random variation
+      const trendVariation = trend * i; // Gradual trend over time (only for higher frequency)
+      const randomVariation = (Math.random() - 0.5) * randomAmplitude; // Random variation
       
       // Combine all variations
       const totalVariation = seasonalVariation + trendVariation + randomVariation;
-      const predicted = Math.max(1, Math.round(validBaseValue * (1 + totalVariation)));
+      
+      // For very low base values (< 0.5), allow fractional predictions
+      let predicted: number;
+      if (validBaseValue < 0.5 && validBaseValue > 0) {
+        predicted = Math.max(0, validBaseValue * (1 + totalVariation));
+        predicted = Math.round(predicted * 10) / 10; // Round to 1 decimal
+      } else {
+        predicted = Math.max(0, Math.round(validBaseValue * (1 + totalVariation)));
+      }
+      
+      // Cap predictions for low-frequency crimes
+      if (isLowFrequency && validBaseValue > 0) {
+        predicted = Math.min(predicted, Math.max(validBaseValue * 2, 2));
+      }
       
       // Ensure all values are valid numbers
-      const validPredicted = isNaN(predicted) ? 3 : predicted;
-      const validLower = Math.max(0, validPredicted - Math.max(1, Math.round(validPredicted * 0.3)));
-      const validUpper = validPredicted + Math.max(1, Math.round(validPredicted * 0.4));
+      const validPredicted = isNaN(predicted) ? validBaseValue : predicted;
+      
+      // Calculate bounds with appropriate precision
+      let validLower: number;
+      let validUpper: number;
+      
+      if (validBaseValue < 0.5 && validBaseValue > 0) {
+        validLower = Math.max(0, Math.round((validPredicted - Math.max(0.1, validPredicted * 0.3)) * 10) / 10);
+        validUpper = Math.round((validPredicted + Math.max(0.1, validPredicted * 0.3)) * 10) / 10;
+      } else {
+        validLower = Math.max(0, Math.round(validPredicted - Math.max(0.5, validPredicted * 0.3)));
+        validUpper = Math.round(validPredicted + Math.max(0.5, validPredicted * 0.3));
+      }
       
       forecast.push({
         month: format(forecastDate, 'yyyy-MM'),
         predicted: validPredicted,
         lower: validLower,
         upper: validUpper,
-        confidence: 0.6,
+        confidence: isLowFrequency ? 0.5 : 0.6, // Lower confidence for low-frequency or no data
         method: 'statistical'
       });
     }
@@ -750,7 +867,7 @@ export class EnhancedPredictiveService {
     let totalRecommendations = 0;
     
     for (const prediction of predictions) {
-      const recommendations = this.createRecommendations(prediction);
+      const recommendations = await this.createRecommendations(prediction);
       
       for (const rec of recommendations) {
         await Recommendation.create({
@@ -769,46 +886,154 @@ export class EnhancedPredictiveService {
     console.log(`✅ Generated ${totalRecommendations} recommendations for ${predictions.length} predictions`);
   }
 
-  private createRecommendations(prediction: any): any[] {
+  private async createRecommendations(prediction: any): Promise<any[]> {
     const recommendations = [];
     
-    if (prediction.riskLevel === 'High') {
+    // Gather barangay-specific data for personalized recommendations
+    const [historicalData, barangayInfo, municipalityStats, crimePatterns] = await Promise.all([
+      this.getHistoricalData(prediction.barangay, prediction.municipality, prediction.province, prediction.crimeType),
+      this.getPopulation(prediction.barangay, prediction.municipality, prediction.province).then(async (pop) => {
+        const barangay = await Barangay.findOne({
+          name: prediction.barangay,
+          municipality: prediction.municipality,
+          province: prediction.province
+        });
+        return { population: pop, barangay };
+      }),
+      this.getMunicipalityCrimeStats(prediction.municipality, prediction.province),
+      this.analyzeCrimePatterns(prediction.barangay, prediction.municipality, prediction.province, prediction.crimeType)
+    ]);
+    
+    const population = barangayInfo?.population || 1000;
+    const populationDensity = population > 0 ? population / 1000 : 1; // per 1000 people
+    const totalCrimes = historicalData.length;
+    const crimeRate = population > 0 ? (totalCrimes / population) * 1000 : 0;
+    const municipalityAvgRate = municipalityStats.avgCrimeRate || 0;
+    const isAboveAverage = crimeRate > municipalityAvgRate * 1.2;
+    
+    // Analyze forecast trend
+    const forecastTrend = prediction.forecast && prediction.forecast.length >= 2
+      ? ((prediction.forecast[prediction.forecast.length - 1].predicted - prediction.forecast[0].predicted) / 
+         Math.max(1, prediction.forecast[0].predicted)) * 100
+      : 0;
+    const isIncreasing = forecastTrend > 10;
+    
+    // Determine priority based on multiple factors
+    const priorityScore = (prediction.riskLevel === 'High' ? 3 : 1) + 
+                         (isAboveAverage ? 2 : 0) + 
+                         (isIncreasing ? 1 : 0) +
+                         (prediction.probability > 0.7 ? 1 : 0);
+    const finalPriority = priorityScore >= 5 ? 'Critical' : 
+                          priorityScore >= 4 ? 'High' : 
+                          priorityScore >= 2 ? 'Medium' : 'Low';
+    
+    // 1. PATROL RECOMMENDATIONS (based on crime patterns and risk level)
+    if (prediction.riskLevel === 'High' || isAboveAverage) {
+      const peakHours = crimePatterns.peakHours || [];
+      const peakDays = crimePatterns.peakDays || [];
+      
+      let patrolDescription = 'Deploy additional police patrols';
+      let patrolRationale = `High risk prediction (${(prediction.probability * 100).toFixed(1)}%) for ${prediction.crimeType} in ${prediction.barangay}`;
+      
+      if (peakHours.length > 0) {
+        const hoursStr = peakHours.slice(0, 3).join(', ');
+        patrolDescription += ` during peak hours (${hoursStr})`;
+        patrolRationale += `. Historical data shows peak activity during ${hoursStr}`;
+      }
+      
+      if (peakDays.length > 0) {
+        patrolDescription += `, especially on ${peakDays[0]}`;
+      }
+      
+      if (populationDensity > 5) {
+        patrolDescription += '. High population density area requires increased visibility';
+        patrolRationale += `. High population density (${Math.round(populationDensity * 1000)} per km²) increases risk`;
+      }
+      
       recommendations.push({
         category: 'patrol',
-        priority: 'High',
-        title: 'Increase Patrol Frequency',
-        description: 'Deploy additional police patrols during peak hours',
-        rationale: `High risk prediction (${(prediction.probability * 100).toFixed(1)}%) for ${prediction.crimeType} in ${prediction.barangay}`,
-        expectedImpact: 'Reduce crime incidents by 20-30%',
-        implementationCost: 'Medium',
-        timeframe: 'Immediate',
-        successMetrics: ['Reduction in reported incidents', 'Response time improvement'],
-        riskFactors: ['Resource constraints', 'Community resistance'],
+        priority: finalPriority,
+        title: isAboveAverage ? 'Enhanced Patrol Coverage for High-Crime Area' : 'Increase Patrol Frequency',
+        description: patrolDescription,
+        rationale: patrolRationale + (isIncreasing ? '. Forecast shows increasing trend' : ''),
+        expectedImpact: isAboveAverage 
+          ? `Reduce crime incidents by 25-35% in this high-crime area (current rate: ${crimeRate.toFixed(2)} per 1000, vs municipality avg: ${municipalityAvgRate.toFixed(2)})`
+          : 'Reduce crime incidents by 20-30%',
+        implementationCost: populationDensity > 5 ? 'High' : 'Medium',
+        timeframe: prediction.riskLevel === 'High' ? 'Immediate' : 'Short-term',
+        successMetrics: [
+          'Reduction in reported incidents',
+          'Response time improvement',
+          `Crime rate reduction to below ${(municipalityAvgRate * 1.1).toFixed(2)} per 1000`
+        ],
+        riskFactors: ['Resource constraints', 'Community resistance', populationDensity > 5 ? 'High population density requires more resources' : ''],
         confidence: prediction.confidence
       });
     }
     
-    // Generate community awareness for Medium and High risk predictions
+    // 2. COMMUNITY AWARENESS (tailored to barangay needs)
     if (prediction.riskLevel === 'Medium' || prediction.riskLevel === 'High') {
       const priority = prediction.riskLevel === 'High' ? 'High' : 'Medium';
       const timeframe = prediction.riskLevel === 'High' ? 'Immediate' : 'Short-term';
       
+      let communityDescription = 'Organize community meetings and awareness campaigns';
+      let communityRationale = `Proactive prevention for ${prediction.crimeType} in ${prediction.barangay} (${prediction.riskLevel} risk)`;
+      
+      // Customize based on crime type
+      if (prediction.crimeType && prediction.crimeType.toUpperCase().includes('THEFT')) {
+        communityDescription = 'Organize community watch programs and property protection workshops';
+        communityRationale += '. Theft prevention requires community vigilance';
+      } else if (prediction.crimeType && prediction.crimeType.toUpperCase().includes('ASSAULT')) {
+        communityDescription = 'Organize conflict resolution workshops and community mediation programs';
+        communityRationale += '. Assault prevention requires addressing root causes';
+      }
+      
+      if (population > 5000) {
+        communityDescription += '. Large community requires multiple sessions across different zones';
+      }
+      
       recommendations.push({
         category: 'community',
         priority: priority,
-        title: 'Community Awareness Program',
-        description: 'Organize community meetings and awareness campaigns',
-        rationale: `Proactive prevention for ${prediction.crimeType} in ${prediction.barangay} (${prediction.riskLevel} risk)`,
-        expectedImpact: 'Improve community vigilance and reporting',
-        implementationCost: 'Low',
+        title: `${prediction.barangay} Community Safety Program`,
+        description: communityDescription,
+        rationale: communityRationale + (totalCrimes > 10 ? `. ${totalCrimes} historical cases indicate ongoing concern` : ''),
+        expectedImpact: `Improve community vigilance and reporting. Target: ${Math.round(population * 0.1)} active participants`,
+        implementationCost: population > 5000 ? 'Medium' : 'Low',
         timeframe: timeframe,
-        successMetrics: ['Community participation rate', 'Reported suspicious activities'],
-        riskFactors: ['Low community engagement', 'Language barriers'],
+        successMetrics: [
+          'Community participation rate (target: 10% of population)',
+          'Reported suspicious activities increase',
+          'Community satisfaction survey scores'
+        ],
+        riskFactors: ['Low community engagement', 'Language barriers', population > 5000 ? 'Large population requires more resources' : ''],
         confidence: prediction.confidence * 0.8
       });
     }
     
-    // Add crime-specific recommendations for serious crimes
+    // 3. INFRASTRUCTURE RECOMMENDATIONS (for high-density or high-crime areas)
+    if (isAboveAverage || populationDensity > 5) {
+      recommendations.push({
+        category: 'infrastructure',
+        priority: isAboveAverage ? 'High' : 'Medium',
+        title: `Security Infrastructure Enhancement for ${prediction.barangay}`,
+        description: `Install security cameras, improve street lighting, and establish security checkpoints in high-risk areas`,
+        rationale: `${prediction.barangay} has ${isAboveAverage ? 'above-average' : 'high-density'} crime rate (${crimeRate.toFixed(2)} per 1000) requiring infrastructure improvements`,
+        expectedImpact: `Reduce crime by 15-25% through deterrence. Focus on ${crimePatterns.hotspotAreas?.length || 0} identified hotspot areas`,
+        implementationCost: 'High',
+        timeframe: 'Medium-term',
+        successMetrics: [
+          'Number of security cameras installed',
+          'Street lighting coverage improvement',
+          'Crime reduction in monitored areas',
+          'Community safety perception improvement'
+        ],
+        riskFactors: ['Budget constraints', 'Maintenance requirements', 'Privacy concerns'],
+        confidence: prediction.confidence * 0.75
+      });
+    }
+    
+    // 4. CRIME-SPECIFIC RECOMMENDATIONS
     const seriousCrimes = ['RAPE', 'MURDER', 'HOMICIDE', 'ASSAULT', 'DRUGS', 'DRUG POSSESSION', 'DRUG TRAFFICKING'];
     if (prediction.crimeType && seriousCrimes.includes(prediction.crimeType.toUpperCase())) {
       const crimeType = prediction.crimeType.toUpperCase();
@@ -816,45 +1041,146 @@ export class EnhancedPredictiveService {
       let description = 'Implement specialized investigation procedures and victim support services';
       let expectedImpact = 'Improve case resolution and victim support';
       
-      // Customize recommendations based on crime type
       if (crimeType.includes('DRUG')) {
-        title = 'Drug Enforcement Protocol';
-        description = 'Implement specialized drug investigation procedures and community outreach';
-        expectedImpact = 'Improve drug case resolution and community safety';
+        title = `Drug Enforcement Strategy for ${prediction.barangay}`;
+        description = `Implement specialized drug investigation procedures, community outreach, and rehabilitation programs`;
+        expectedImpact = `Improve drug case resolution and community safety. Target: ${Math.round(totalCrimes * 0.3)} cases resolved`;
+      } else if (crimeType.includes('RAPE') || crimeType.includes('ASSAULT')) {
+        title = `Victim Support and Protection Program for ${prediction.barangay}`;
+        description = `Establish victim support services, safe reporting mechanisms, and specialized investigation units`;
+        expectedImpact = 'Improve victim support and case resolution rates';
       }
       
       recommendations.push({
         category: 'investigation',
-        priority: prediction.riskLevel === 'High' ? 'High' : 'Medium',
+        priority: finalPriority,
         title: title,
         description: description,
-        rationale: `Serious crime type (${prediction.crimeType}) requires enhanced investigation protocols`,
+        rationale: `Serious crime type (${prediction.crimeType}) in ${prediction.barangay} requires enhanced investigation protocols. ${totalCrimes} historical cases indicate ongoing concern`,
         expectedImpact: expectedImpact,
         implementationCost: 'High',
         timeframe: 'Immediate',
-        successMetrics: ['Case resolution rate', 'Community safety', 'Evidence collection quality'],
-        riskFactors: ['Resource requirements', 'Training needs'],
+        successMetrics: [
+          'Case resolution rate improvement',
+          'Community safety perception',
+          'Evidence collection quality',
+          'Victim satisfaction scores'
+        ],
+        riskFactors: ['Resource requirements', 'Training needs', 'Specialized personnel availability'],
         confidence: prediction.confidence * 0.9
       });
     }
     
-    // Add drug-specific prevention recommendations
+    // 5. PREVENTION PROGRAMS (crime-type specific)
     if (prediction.crimeType && prediction.crimeType.toUpperCase().includes('DRUG')) {
       recommendations.push({
         category: 'prevention',
         priority: prediction.riskLevel === 'High' ? 'High' : 'Medium',
-        title: 'Drug Prevention Program',
-        description: 'Implement community drug awareness and prevention programs',
-        rationale: `Drug-related crime (${prediction.crimeType}) requires preventive community measures`,
-        expectedImpact: 'Reduce drug-related incidents through community education',
+        title: `Drug Prevention Program for ${prediction.barangay}`,
+        description: `Implement community drug awareness programs, youth engagement activities, and rehabilitation support`,
+        rationale: `Drug-related crime (${prediction.crimeType}) in ${prediction.barangay} requires preventive community measures. ${totalCrimes} cases indicate need for intervention`,
+        expectedImpact: `Reduce drug-related incidents by 20-30% through community education and early intervention`,
         implementationCost: 'Medium',
         timeframe: 'Short-term',
-        successMetrics: ['Community participation', 'Drug awareness levels', 'Reported incidents'],
-        riskFactors: ['Community resistance', 'Resource allocation'],
+        successMetrics: [
+          `Community participation (target: ${Math.round(population * 0.15)} people)`,
+          'Drug awareness levels (pre/post surveys)',
+          'Reported incidents reduction',
+          'Youth engagement program participation'
+        ],
+        riskFactors: ['Community resistance', 'Resource allocation', 'Stigma around drug issues'],
         confidence: prediction.confidence * 0.7
       });
     }
     
+    // 6. TARGETED INTERVENTION (for increasing trends)
+    if (isIncreasing && forecastTrend > 15) {
+      recommendations.push({
+        category: 'prevention',
+        priority: 'High',
+        title: `Urgent Intervention for Rising ${prediction.crimeType} in ${prediction.barangay}`,
+        description: `Implement immediate intervention measures to address the ${forecastTrend.toFixed(1)}% projected increase in ${prediction.crimeType}`,
+        rationale: `Forecast shows significant increase (${forecastTrend.toFixed(1)}%) in ${prediction.crimeType} for ${prediction.barangay}. Immediate action required`,
+        expectedImpact: `Prevent forecasted increase and stabilize crime rates`,
+        implementationCost: 'High',
+        timeframe: 'Immediate',
+        successMetrics: [
+          'Prevent forecasted crime increase',
+          'Stabilize crime rate',
+          'Response time to incidents',
+          'Community engagement in prevention'
+        ],
+        riskFactors: ['Urgent resource allocation needed', 'Coordination challenges', 'Time constraints'],
+        confidence: prediction.confidence * 0.85
+      });
+    }
+    
     return recommendations;
+  }
+  
+  // Helper method to get municipality crime statistics
+  private async getMunicipalityCrimeStats(municipality: string, province: string): Promise<any> {
+    try {
+      const allCrimes = await Crime.find({ municipality, province });
+      const barangays = await Barangay.find({ municipality, province });
+      const totalPopulation = barangays.reduce((sum, b) => sum + (b.population || 0), 0);
+      const totalCrimes = allCrimes.length;
+      const avgCrimeRate = totalPopulation > 0 ? (totalCrimes / totalPopulation) * 1000 : 0;
+      
+      return {
+        totalCrimes,
+        totalPopulation,
+        avgCrimeRate,
+        barangayCount: barangays.length
+      };
+    } catch (error) {
+      console.error('Error getting municipality stats:', error);
+      return { totalCrimes: 0, totalPopulation: 0, avgCrimeRate: 0, barangayCount: 0 };
+    }
+  }
+  
+  // Helper method to analyze crime patterns
+  private async analyzeCrimePatterns(barangay: string, municipality: string, province: string, crimeType: string): Promise<any> {
+    try {
+      const crimes = await Crime.find({ barangay, municipality, province, type: crimeType });
+      
+      // Analyze time patterns
+      const hourCounts = new Map<number, number>();
+      const dayCounts = new Map<number, number>();
+      
+      crimes.forEach(crime => {
+        if (crime.confinementDate) {
+          const date = new Date(crime.confinementDate);
+          const hour = date.getHours();
+          const day = date.getDay();
+          
+          hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+          dayCounts.set(day, (dayCounts.get(day) || 0) + 1);
+        }
+      });
+      
+      // Get peak hours (top 3)
+      const peakHours = Array.from(hourCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([hour]) => `${hour}:00`);
+      
+      // Get peak days
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const peakDays = Array.from(dayCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([day]) => dayNames[day]);
+      
+      return {
+        peakHours,
+        peakDays,
+        totalCrimes: crimes.length,
+        hotspotAreas: [] // Could be enhanced with location clustering
+      };
+    } catch (error) {
+      console.error('Error analyzing crime patterns:', error);
+      return { peakHours: [], peakDays: [], totalCrimes: 0, hotspotAreas: [] };
+    }
   }
 }

@@ -122,26 +122,26 @@ export class NeuralNetworkService {
       const inputFeatures = this.prepareInputFeatures(historicalData);
 
       // Compute deterministic amplitude from historical variance to avoid flat lines
-      const varianceScopeMonthly = (() => {
-        const monthlyMap = new Map<string, number>();
-        historicalData.forEach(crime => {
-          const date = crime.confinementDate;
-          if (date && !isNaN(new Date(date).getTime())) {
-            const key = format(startOfMonth(new Date(date)), 'yyyy-MM');
-            monthlyMap.set(key, (monthlyMap.get(key) || 0) + 1);
-          }
-        });
-        const counts = Array.from(monthlyMap.values());
-        const mean = counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : 0;
-        const variance = counts.length > 1
-          ? counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (counts.length - 1)
-          : 0;
-        const stdDev = Math.sqrt(variance);
-        let amp = mean > 0 ? stdDev / Math.max(1, mean) : 0; // coefficient of variation
-        // Clamp for stability
-        amp = Math.max(0.06, Math.min(0.18, amp));
-        return amp;
-      })();
+      // Also calculate historical statistics for realistic capping
+      const monthlyMap = new Map<string, number>();
+      historicalData.forEach(crime => {
+        const date = crime.confinementDate;
+        if (date && !isNaN(new Date(date).getTime())) {
+          const key = format(startOfMonth(new Date(date)), 'yyyy-MM');
+          monthlyMap.set(key, (monthlyMap.get(key) || 0) + 1);
+        }
+      });
+      const counts = Array.from(monthlyMap.values());
+      const historicalMean = counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : 0;
+      const variance = counts.length > 1
+        ? counts.reduce((a, b) => a + Math.pow(b - historicalMean, 2), 0) / (counts.length - 1)
+        : 0;
+      const stdDev = Math.sqrt(variance);
+      let amp = historicalMean > 0 ? stdDev / Math.max(1, historicalMean) : 0; // coefficient of variation
+      // Clamp for stability
+      amp = Math.max(0.06, Math.min(0.18, amp));
+      const varianceScopeMonthly = amp;
+      const isLowFrequency = historicalMean < 2;
 
       // Generate predictions
       const forecasts: NeuralNetworkForecast[] = [];
@@ -168,14 +168,35 @@ export class NeuralNetworkService {
         
         const forecastDate = addMonths(new Date(), i + 1);
         
-        // Ensure all values are valid numbers and add realistic variation
-        let validPredicted = isNaN(predictedValue) || !isFinite(predictedValue) ? 3 : Math.max(0, Math.round(predictedValue));
+        // Use historical mean for realistic fallback (not default 3)
+        const fallbackValue = historicalMean > 0 ? Math.max(0, Math.round(historicalMean * 10) / 10) : 0;
         
+        // Ensure all values are valid numbers, use historical mean as fallback instead of 3
+        let validPredicted = isNaN(predictedValue) || !isFinite(predictedValue) 
+          ? fallbackValue 
+          : Math.max(0, Math.round(predictedValue));
+        
+        // For low-frequency crimes, use minimal variation
         // Deterministic, variance-driven smoothing (no randomness)
-        const seasonalVariation = Math.sin((i * Math.PI) / 3) * varianceScopeMonthly;
-        const trendVariation = i * Math.min(0.03, varianceScopeMonthly * 0.2);
+        const seasonalVariation = Math.sin((i * Math.PI) / 3) * (isLowFrequency ? varianceScopeMonthly * 0.3 : varianceScopeMonthly);
+        const trendVariation = isLowFrequency ? 0 : i * Math.min(0.03, varianceScopeMonthly * 0.2);
         const totalVariation = seasonalVariation + trendVariation;
-        validPredicted = Math.max(1, Math.round(validPredicted * (1 + totalVariation)));
+        
+        // Apply variation, but cap for low-frequency crimes
+        validPredicted = validPredicted * (1 + totalVariation);
+        
+        // Cap predictions based on historical data
+        const maxCap = isLowFrequency 
+          ? Math.min(Math.max(historicalMean * 2, 0), 3)
+          : Math.max(historicalMean * 1.5, 0);
+        validPredicted = Math.min(validPredicted, maxCap);
+        
+        // Round appropriately - don't force minimum of 1, allow 0 for rare crimes
+        if (historicalMean < 0.5 && historicalMean > 0) {
+          validPredicted = Math.max(0, Math.round(validPredicted * 10) / 10);
+        } else {
+          validPredicted = Math.max(0, Math.round(validPredicted));
+        }
         
         const validConfidence = isNaN(confidence) || !isFinite(confidence) ? 0.5 : Math.min(1, Math.max(0, confidence));
         
