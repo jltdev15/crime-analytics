@@ -20,8 +20,31 @@ export const healthApi = axios.create({
 
 export const analyticsAPI = {
   getMapData: () => api.get('/analytics/descriptive/map-data'),
+  getCrimeTypeDistribution: (filters?: { barangay?: string; municipality?: string; province?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.barangay) params.append('barangay', filters.barangay);
+    if (filters?.municipality) params.append('municipality', filters.municipality);
+    if (filters?.province) params.append('province', filters.province);
+    return api.get(`/analytics/descriptive/types/distribution?${params.toString()}`);
+  },
+};
+
+export const crimesAPI = {
+  getCrimes: (filters?: { barangay?: string; municipality?: string; province?: string; page?: number; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (filters?.barangay) params.append('barangay', filters.barangay);
+    if (filters?.municipality) params.append('municipality', filters.municipality);
+    if (filters?.province) params.append('province', filters.province);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    return api.get(`/crimes?${params.toString()}`);
+  },
 };
 
 export const healthAPI = {
   checkHealth: () => healthApi.get('/health'),
+};
+
+export const predictiveAPI = {
+  getModelPerformance: () => api.get('/predict/model/performance'),
 };

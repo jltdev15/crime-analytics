@@ -116,14 +116,14 @@
           
           <!-- Map Display -->
           <div v-else class="relative">
-            <div id="map" class="h-96 w-full min-h-[384px] bg-gray-100 rounded-lg"></div>
+            <div id="map" class=" w-full min-h-[500px] bg-gray-100 rounded-lg"></div>
           </div>
         </div>
 
         <!-- Map Legend -->
         <div class="mt-6 bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Map Legend</h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="flex items-center">
               <div class="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
               <span class="text-sm text-gray-600">High Risk Areas (Crime Rate > 10 per 1000)</span>
@@ -135,6 +135,10 @@
             <div class="flex items-center">
               <div class="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
               <span class="text-sm text-gray-600">Low Risk Areas (< 5 per 1000)</span>
+            </div>
+            <div class="flex items-center">
+              <div class="w-4 h-4 border-2 border-blue-700 bg-blue-500 bg-opacity-10 mr-3"></div>
+              <span class="text-sm text-gray-600">Lubao Municipality Boundary</span>
             </div>
           </div>
         </div>
@@ -201,6 +205,167 @@
         </div>
       </div>
     </main>
+
+    <!-- Side Panel for Detailed Information - X/Twitter Style -->
+    <div 
+      v-if="isPanelOpen"
+      class="fixed inset-0 z-50 overflow-hidden"
+      @click.self="closePanel"
+    >
+      <!-- Backdrop -->
+      <div class="absolute inset-0 bg-black/40 transition-opacity"></div>
+      
+      <!-- Panel -->
+      <div 
+        class="absolute right-0 top-0 h-full w-full md:max-w-xl bg-white transform transition-transform duration-200 ease-out overflow-y-auto"
+        :class="{ 'translate-x-0': isPanelOpen, 'translate-x-full': !isPanelOpen }"
+      >
+        <!-- Header - X Style -->
+        <div class="sticky top-0 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 px-4 py-3 flex items-center justify-between z-10">
+          <h2 class="text-xl font-bold text-gray-900">Barangay Details</h2>
+          <button 
+            @click="closePanel"
+            class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-900"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="px-4 py-3" v-if="selectedBarangay">
+          <!-- Loading State -->
+          <div v-if="loadingPanelData" class="flex items-center justify-center py-16">
+            <div class="text-center">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-gray-900 mb-3"></div>
+              <p class="text-sm text-gray-500">Loading...</p>
+            </div>
+          </div>
+
+          <!-- Error State -->
+          <div v-else-if="panelError" class="px-4 py-3 mb-4 border border-red-200/50 rounded-2xl bg-red-50/50">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <p class="text-sm text-red-700">{{ panelError }}</p>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <template v-else>
+            <!-- Barangay Header - X Style -->
+            <div class="pb-4 border-b border-gray-200/50 mb-4">
+              <h3 class="text-xl font-bold text-gray-900 mb-1 leading-tight">{{ selectedBarangay.barangay }}</h3>
+              <p class="text-sm text-gray-500 mb-3">{{ selectedBarangay.municipality }}, {{ selectedBarangay.province }}</p>
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold" 
+                   :style="{ 
+                     color: getMarkerColor(calculateRiskLevel(selectedBarangay.crimeRate)),
+                     backgroundColor: getMarkerColor(calculateRiskLevel(selectedBarangay.crimeRate)) + '15'
+                   }">
+                {{ calculateRiskLevel(selectedBarangay.crimeRate).toUpperCase() }} RISK
+              </div>
+            </div>
+
+            <!-- Statistics - X Style Compact Cards -->
+            <div class="grid grid-cols-2 gap-2 mb-4">
+              <div class="px-3 py-2.5 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors">
+                <p class="text-xs text-gray-500 mb-0.5">Crimes</p>
+                <p class="text-lg font-bold text-gray-900">{{ selectedBarangay.crimeCount }}</p>
+              </div>
+              <div class="px-3 py-2.5 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors">
+                <p class="text-xs text-gray-500 mb-0.5">Population</p>
+                <p class="text-lg font-bold text-gray-900">{{ selectedBarangay.population?.toLocaleString() || 'N/A' }}</p>
+              </div>
+              <div class="px-3 py-2.5 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors">
+                <p class="text-xs text-gray-500 mb-0.5">Crime Rate</p>
+                <p class="text-lg font-bold text-gray-900">
+                  {{ selectedBarangay.crimeRate ? selectedBarangay.crimeRate.toFixed(1) : 'N/A' }}
+                  <span class="text-xs font-normal text-gray-500">/1k</span>
+                </p>
+              </div>
+              <div class="px-3 py-2.5 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors">
+                <p class="text-xs text-gray-500 mb-0.5">Risk</p>
+                <p class="text-lg font-bold" 
+                   :style="{ color: getMarkerColor(calculateRiskLevel(selectedBarangay.crimeRate)) }">
+                  {{ calculateRiskLevel(selectedBarangay.crimeRate).toUpperCase() }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Crime Type Distribution - X Style -->
+            <div class="mb-4" v-if="crimeTypeDistribution.length > 0">
+              <h4 class="text-sm font-bold text-gray-900 mb-3 px-1">Crime Types</h4>
+              <div class="space-y-0.5">
+                <div 
+                  v-for="(crimeType, index) in crimeTypeDistribution" 
+                  :key="index"
+                  class="px-4 py-3 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors"
+                >
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-semibold text-gray-900">{{ crimeType.type }}</span>
+                    <span class="text-sm font-bold text-gray-900">{{ crimeType.count }}</span>
+                  </div>
+                  <div class="w-full bg-gray-200/50 rounded-full h-1.5 overflow-hidden">
+                    <div 
+                      class="h-1.5 rounded-full transition-all duration-500"
+                      :style="{ 
+                        width: `${crimeTypeDistribution.length > 0 && crimeTypeDistribution[0] ? (crimeType.count / crimeTypeDistribution[0].count) * 100 : 0}%`,
+                        backgroundColor: getMarkerColor(calculateRiskLevel(selectedBarangay.crimeRate))
+                      }"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Crimes - X Style Timeline -->
+            <div class="mb-4" v-if="recentCrimes.length > 0">
+              <h4 class="text-sm font-bold text-gray-900 mb-3 px-1">Recent Crimes</h4>
+              <div class="space-y-0.5">
+                <div 
+                  v-for="(crime, index) in recentCrimes" 
+                  :key="crime._id || index"
+                  class="px-4 py-3 border border-gray-200/50 rounded-2xl hover:bg-gray-50/50 transition-colors cursor-pointer"
+                >
+                  <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0 w-1 h-1 rounded-full mt-2"
+                         :style="{ 
+                           backgroundColor: crime.type?.toLowerCase().includes('murder') || crime.type?.toLowerCase().includes('homicide') ? '#ef4444' : 
+                                         crime.type?.toLowerCase().includes('theft') || crime.type?.toLowerCase().includes('robbery') ? '#eab308' : '#3b82f6'
+                         }"></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-start justify-between gap-2 mb-1">
+                        <p class="text-sm font-semibold text-gray-900 leading-tight">{{ crime.type || 'Unknown Crime Type' }}</p>
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full flex-shrink-0">
+                          {{ crime.status || 'Unknown' }}
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-500 mb-1">
+                        {{ crime.confinementDate ? new Date(crime.confinementDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date not available' }}
+                      </p>
+                      <p v-if="crime.description" class="text-sm text-gray-600 mt-1.5 line-clamp-2 leading-relaxed">
+                        {{ crime.description }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty States - X Style -->
+            <div v-if="crimeTypeDistribution.length === 0 && recentCrimes.length === 0" class="text-center py-12 px-4">
+              <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <p class="text-sm text-gray-500">No additional details available</p>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -208,7 +373,7 @@
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { onAuthStateChange } from '../services/auth'
-import { analyticsAPI } from '../services/api'
+import { analyticsAPI, crimesAPI } from '../services/api'
 // @ts-ignore
 import Navigation from '../components/Navigation.vue'
 import L from 'leaflet'
@@ -222,6 +387,16 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const map = ref<L.Map | null>(null)
 const markers = ref<L.Layer[]>([])
+const geoJsonLayer = ref<L.GeoJSON | null>(null)
+const maskLayer = ref<L.Rectangle | null>(null)
+
+// Side panel state
+const isPanelOpen = ref(false)
+const selectedBarangay = ref<MapDataItem | null>(null)
+const crimeTypeDistribution = ref<Array<{ type: string; count: number }>>([])
+const recentCrimes = ref<any[]>([])
+const loadingPanelData = ref(false)
+const panelError = ref<string | null>(null)
 
 // Interface for map data
 interface MapDataItem {
@@ -297,6 +472,16 @@ const initMap = () => {
     
     // Remove existing map if it exists
     if (map.value) {
+      // Clear GeoJSON layer before removing map
+      if (geoJsonLayer.value) {
+        map.value.removeLayer(geoJsonLayer.value as unknown as L.Layer)
+        geoJsonLayer.value = null
+      }
+      // Clear mask layer
+      if (maskLayer.value) {
+        map.value.removeLayer(maskLayer.value as unknown as L.Layer)
+        maskLayer.value = null
+      }
       map.value.remove()
       map.value = null
     }
@@ -329,9 +514,141 @@ const initMap = () => {
       }
     }, 100)
     
+    // Load Lubao boundary
+    loadLubaoBoundary()
+    
   } catch (err: any) {
     console.error('Error initializing map:', err)
     error.value = 'Failed to initialize map: ' + err.message
+  }
+}
+
+// Load Lubao boundary from GeoJSON
+const loadLubaoBoundary = async () => {
+  if (!map.value) return
+  
+  try {
+    console.log('Loading Lubao boundary...')
+    
+    // Remove existing GeoJSON layer if it exists
+    if (geoJsonLayer.value) {
+      map.value.removeLayer(geoJsonLayer.value as unknown as L.Layer)
+      geoJsonLayer.value = null
+    }
+    
+    // Fetch GeoJSON file from public folder
+    const response = await fetch('/Lubao.geojson')
+    if (!response.ok) {
+      throw new Error(`Failed to fetch GeoJSON: ${response.statusText}`)
+    }
+    
+    const geoJsonData = await response.json()
+    console.log('GeoJSON data loaded:', geoJsonData)
+    
+    // Create GeoJSON layer with styling (non-interactive to allow marker clicks)
+    geoJsonLayer.value = L.geoJSON(geoJsonData, {
+      style: {
+        fillColor: '#3b82f6',
+        fillOpacity: 0.1,
+        color: '#1e40af',
+        weight: 2,
+        opacity: 0.8
+      },
+      interactive: false, // Make boundary non-interactive so markers can be clicked
+      onEachFeature: (feature, layer) => {
+        // No popup needed for boundary - it's just visual
+      }
+    })
+    
+    // Add layer to map
+    if (geoJsonLayer.value && map.value) {
+      geoJsonLayer.value.addTo(map.value as L.Map)
+      console.log('Lubao boundary added to map')
+      
+      // Get boundary bounds and set maxBounds to restrict panning
+      const boundaryBounds = geoJsonLayer.value.getBounds()
+      if (boundaryBounds.isValid()) {
+        // Set maxBounds to restrict panning to boundary area (with small padding)
+        const paddedBounds = L.latLngBounds(
+          boundaryBounds.getSouthWest(),
+          boundaryBounds.getNorthEast()
+        ).pad(0.1) // 10% padding
+        
+        map.value.setMaxBounds(paddedBounds)
+        console.log('Map maxBounds set to boundary area')
+        
+        // Create mask overlay to darken areas outside boundary
+        createMaskOverlay(boundaryBounds)
+      }
+      
+      // Fit map bounds to show boundary and markers after a short delay
+      setTimeout(() => {
+        fitMapBounds()
+      }, 200)
+    }
+    
+  } catch (err: any) {
+    console.error('Error loading Lubao boundary:', err)
+    // Don't set error state - boundary is optional, map should still work
+  }
+}
+
+// Create mask overlay to darken areas outside the boundary
+const createMaskOverlay = (boundaryBounds: L.LatLngBounds) => {
+  if (!map.value || !geoJsonLayer.value) return
+  
+  try {
+    // Remove existing mask if it exists
+    if (maskLayer.value) {
+      map.value.removeLayer(maskLayer.value as unknown as L.Layer)
+      maskLayer.value = null
+    }
+    
+    // Create SVG overlay for masking
+    // This will be handled via CSS clip-path on the map container
+    // The maxBounds already restricts panning, so the visual crop is handled by fitting to boundary
+    
+    console.log('Map view restricted to boundary area via maxBounds')
+    
+  } catch (err: any) {
+    console.error('Error creating mask overlay:', err)
+  }
+}
+
+// Fit map bounds to show both boundary and markers
+const fitMapBounds = () => {
+  if (!map.value) return
+  
+  try {
+    // Prioritize boundary bounds - only show area within boundary
+    if (geoJsonLayer.value) {
+      const boundaryBounds = geoJsonLayer.value.getBounds()
+      if (boundaryBounds.isValid()) {
+        // Fit to boundary with small padding
+        map.value.fitBounds(boundaryBounds, {
+          padding: [30, 30] // Small padding for better visibility
+        })
+        console.log('Map bounds fitted to boundary area')
+        return
+      }
+    }
+    
+    // Fallback: if no boundary, use marker bounds
+    if (markers.value.length > 0) {
+      const markerBounds = L.latLngBounds(
+        mapData.value
+          .filter((item: MapDataItem) => item.latitude && item.longitude)
+          .map((item: MapDataItem) => [item.latitude, item.longitude] as L.LatLngTuple)
+      )
+      if (markerBounds.isValid()) {
+        map.value.fitBounds(markerBounds, {
+          padding: [50, 50]
+        })
+        console.log('Map bounds fitted to markers')
+      }
+    }
+  } catch (err: any) {
+    console.error('Error fitting map bounds:', err)
   }
 }
 
@@ -423,6 +740,9 @@ const addMarkers = () => {
   })
   markers.value = []
   
+  // Note: GeoJSON layer is not cleared here as it should persist
+  // It will be cleared when map is reinitialized
+  
   mapData.value.forEach((item: MapDataItem) => {
     if (!item.latitude || !item.longitude) return
     
@@ -437,7 +757,9 @@ const addMarkers = () => {
       color: '#ffffff',
       weight: 2,
       opacity: 1,
-      fillOpacity: 0.8
+      fillOpacity: 0.8,
+      interactive: true, // Ensure marker is clickable
+      bubblingMouseEvents: false // Prevent events from bubbling to boundary layer
     })
     
     // Add pulse effect for ALL risk levels with different intensities
@@ -448,7 +770,9 @@ const addMarkers = () => {
       weight: pulseConfig.weight,
       opacity: pulseConfig.opacity,
       fillColor: color,
-      fillOpacity: pulseConfig.fillOpacity
+      fillOpacity: pulseConfig.fillOpacity,
+      interactive: false, // Pulse circle should not intercept clicks
+      bubblingMouseEvents: false
     })
     
     // Add pulsing animation with different speeds and intensities
@@ -481,29 +805,183 @@ const addMarkers = () => {
     pulseCircle.addTo(map.value as L.Map)
     markers.value.push(pulseCircle as L.Layer)
     
-    // Create popup content
-    const popupContent = `
-      <div class="p-2">
-        <h3 class="font-semibold text-gray-900">${item.barangay}</h3>
-        <p class="text-sm text-gray-600">${item.municipality}, ${item.province}</p>
-        <div class="mt-2 space-y-1">
-          <p class="text-sm"><strong>Crime Count:</strong> ${item.crimeCount}</p>
-          <p class="text-sm"><strong>Population:</strong> ${item.population?.toLocaleString() || 'N/A'}</p>
-          <p class="text-sm"><strong>Crime Rate:</strong> ${item.crimeRate ? item.crimeRate.toFixed(2) + ' per 1000' : 'N/A'}</p>
-          <p class="text-sm"><strong>Risk Level:</strong> <span class="font-semibold" style="color: ${color}">${riskLevel.toUpperCase()}</span></p>
+    // Create enhanced popup content with crime type breakdown
+    const createPopupContent = async (barangayItem: MapDataItem) => {
+      // Fetch crime type distribution for this barangay
+      let crimeTypes: Array<{ type: string; count: number }> = []
+      try {
+        const response = await analyticsAPI.getCrimeTypeDistribution({
+          barangay: barangayItem.barangay,
+          municipality: barangayItem.municipality,
+          province: barangayItem.province
+        })
+        crimeTypes = response.data || []
+      } catch (err) {
+        console.error('Error fetching crime types for popup:', err)
+      }
+      
+      // Get top 5 crime types
+      const topCrimeTypes = crimeTypes.slice(0, 3)
+      const crimeTypesHtml = topCrimeTypes.length > 0
+        ? `
+          <div class="mt-1.5 pt-1.5 border-t border-gray-200">
+            <p class="text-xs font-semibold text-gray-700 mb-1">Top Crimes:</p>
+            <div class="space-y-0.5">
+              ${topCrimeTypes.map(ct => `
+                <div class="flex justify-between items-center text-xs">
+                  <span class="text-gray-600 truncate" style="max-width: 120px;" title="${ct.type}">${ct.type.length > 15 ? ct.type.substring(0, 15) + '...' : ct.type}</span>
+                  <span class="font-semibold text-gray-900 ml-1">${ct.count}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `
+        : ''
+      
+      // Create unique ID for this barangay's button
+      const buttonId = `view-details-${barangayItem.barangay.replace(/\s+/g, '-')}-${Date.now()}`
+      
+      return `
+        <div class="p-2 min-w-[200px] max-w-[220px]">
+          <h3 class="font-semibold text-gray-900 text-sm mb-0.5 leading-tight">${barangayItem.barangay}</h3>
+          <p class="text-xs text-gray-500 mb-2 leading-tight">${barangayItem.municipality}</p>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-1 mb-2 text-xs">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Crimes:</span>
+              <span class="font-semibold text-gray-900">${barangayItem.crimeCount}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Pop:</span>
+              <span class="font-semibold text-gray-900">${barangayItem.population ? (barangayItem.population / 1000).toFixed(1) + 'k' : 'N/A'}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Rate:</span>
+              <span class="font-semibold text-gray-900">${barangayItem.crimeRate ? barangayItem.crimeRate.toFixed(1) : 'N/A'}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-500">Risk:</span>
+              <span class="text-xs font-semibold px-1.5 py-0.5 rounded" style="color: ${color}; background-color: ${color}20">${riskLevel.toUpperCase()}</span>
+            </div>
+          </div>
+          ${crimeTypesHtml}
+          <button 
+            id="${buttonId}"
+            data-barangay='${JSON.stringify(barangayItem)}'
+            class="view-details-btn mt-2 w-full px-2 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+          >
+            View Details
+          </button>
         </div>
-      </div>
-    `
+      `
+    }
     
-    marker.bindPopup(popupContent)
+    // Bind popup with async content loading
+    marker.bindPopup('Loading...', {
+      maxWidth: 220,
+      className: 'compact-popup'
+    })
+    
+    // Load popup content when opened
+    marker.on('popupopen', async () => {
+      const content = await createPopupContent(item)
+      marker.setPopupContent(content)
+      
+      // Add click handler to the button after popup is rendered
+      setTimeout(() => {
+        const popupElement = marker.getPopup()?.getElement()
+        if (popupElement) {
+          const button = popupElement.querySelector('.view-details-btn')
+          if (button) {
+            button.addEventListener('click', () => {
+              const barangayData = JSON.parse(button.getAttribute('data-barangay') || '{}')
+              openPanel(barangayData)
+              if (map.value) {
+                map.value.closePopup()
+              }
+            })
+          }
+        }
+      }, 100)
+    })
+    
     marker.addTo(map.value as L.Map)
     markers.value.push(marker as L.Layer)
   })
+  
+  // Don't refit bounds after adding markers - keep view restricted to boundary
+  // The boundary bounds are already set via maxBounds
 }
 
 // Refresh map data
 const refreshMap = () => {
   fetchMapData()
+}
+
+// Fetch crime type distribution for a barangay
+const fetchCrimeTypeDistribution = async (barangay: MapDataItem) => {
+  try {
+    const response = await analyticsAPI.getCrimeTypeDistribution({
+      barangay: barangay.barangay,
+      municipality: barangay.municipality,
+      province: barangay.province
+    })
+    return response.data || []
+  } catch (err: any) {
+    console.error('Error fetching crime type distribution:', err)
+    return []
+  }
+}
+
+// Fetch recent crimes for a barangay
+const fetchRecentCrimes = async (barangay: MapDataItem) => {
+  try {
+    const response = await crimesAPI.getCrimes({
+      barangay: barangay.barangay,
+      municipality: barangay.municipality,
+      province: barangay.province,
+      limit: 10,
+      page: 1
+    })
+    return response.data?.crimes || []
+  } catch (err: any) {
+    console.error('Error fetching recent crimes:', err)
+    return []
+  }
+}
+
+// Open side panel with barangay details
+const openPanel = async (barangay: MapDataItem) => {
+  selectedBarangay.value = barangay
+  isPanelOpen.value = true
+  loadingPanelData.value = true
+  panelError.value = null
+  crimeTypeDistribution.value = []
+  recentCrimes.value = []
+  
+  try {
+    // Fetch both data sources in parallel
+    const [crimeTypes, crimes] = await Promise.all([
+      fetchCrimeTypeDistribution(barangay),
+      fetchRecentCrimes(barangay)
+    ])
+    
+    crimeTypeDistribution.value = crimeTypes
+    recentCrimes.value = crimes
+  } catch (err: any) {
+    console.error('Error loading panel data:', err)
+    panelError.value = 'Failed to load detailed information'
+  } finally {
+    loadingPanelData.value = false
+  }
+}
+
+// Close side panel
+const closePanel = () => {
+  isPanelOpen.value = false
+  selectedBarangay.value = null
+  crimeTypeDistribution.value = []
+  recentCrimes.value = []
+  panelError.value = null
 }
 
 onMounted(() => {
@@ -608,6 +1086,7 @@ onMounted(() => {
 /* Custom popup styles */
 .leaflet-popup-content {
   font-family: 'Inter', sans-serif;
+  margin: 0;
 }
 
 .leaflet-popup-content h3 {
@@ -619,6 +1098,21 @@ onMounted(() => {
 .leaflet-popup-content p {
   margin: 0.25rem 0;
   font-size: 0.875rem;
+}
+
+/* Compact popup styling */
+.leaflet-popup.compact-popup {
+  margin-bottom: 20px;
+}
+
+.leaflet-popup.compact-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 6px;
+}
+
+.leaflet-popup.compact-popup .leaflet-popup-content {
+  margin: 0;
+  padding: 0;
 }
 
 /* Loading animation */

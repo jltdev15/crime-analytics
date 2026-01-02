@@ -6,6 +6,7 @@ import IncidentMap from '../views/IncidentMap.vue'
 import Predictive from '../views/Predictive.vue'
 import PredictionsList from '../views/PredictionsList.vue'
 import Prescriptive from '../views/Prescriptive.vue'
+import AIWorkflow from '../views/AIWorkflow.vue'
 import DataManagement from '../views/DataManagement.vue'
 
 const router = createRouter({
@@ -61,6 +62,12 @@ const router = createRouter({
       path: '/prescriptive',
       name: 'prescriptive',
       component: Prescriptive,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/ai-workflow',
+      name: 'ai-workflow',
+      component: AIWorkflow,
       meta: { requiresAuth: true }
     },
     {
