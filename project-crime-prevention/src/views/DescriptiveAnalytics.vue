@@ -31,7 +31,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                 </svg>
                 <span class="text-sm text-gray-500">Data Period:</span>
-                <span v-if="!isLoading" class="text-sm font-medium text-gray-700">{{ summary.dateRange?.duration || '2010 - 2024' }}</span>
+                <span v-if="!isLoading" class="text-sm font-medium text-gray-700">{{ summary.dateRange?.duration || '2010 - November 13 2025' }}</span>
                 <div v-else class="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
               </div>
               <div class="flex items-center gap-2">

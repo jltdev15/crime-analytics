@@ -125,15 +125,21 @@
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Map Legend</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div class="flex items-center">
-              <div class="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
+              <svg class="w-5 h-6 flex-shrink-0 mr-3" viewBox="0 0 24 34" fill="#ef4444" stroke="#fff" stroke-width="1">
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 22 12 22s12-13 12-22C24 5.373 18.627 0 12 0z"/>
+              </svg>
               <span class="text-sm text-gray-600">High Risk Areas (Crime Rate > 10 per 1000)</span>
             </div>
             <div class="flex items-center">
-              <div class="w-4 h-4 bg-yellow-500 rounded-full mr-3"></div>
+              <svg class="w-5 h-6 flex-shrink-0 mr-3" viewBox="0 0 24 34" fill="#eab308" stroke="#fff" stroke-width="1">
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 22 12 22s12-13 12-22C24 5.373 18.627 0 12 0z"/>
+              </svg>
               <span class="text-sm text-gray-600">Medium Risk Areas (5-10 per 1000)</span>
             </div>
             <div class="flex items-center">
-              <div class="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+              <svg class="w-5 h-6 flex-shrink-0 mr-3" viewBox="0 0 24 34" fill="#22c55e" stroke="#fff" stroke-width="1">
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 22 12 22s12-13 12-22C24 5.373 18.627 0 12 0z"/>
+              </svg>
               <span class="text-sm text-gray-600">Low Risk Areas (< 5 per 1000)</span>
             </div>
             <div class="flex items-center">
@@ -724,6 +730,30 @@ const getPulseConfig = (riskLevel: 'high' | 'medium' | 'low') => {
   }
 }
 
+// Create pin icon for markers
+const createPinIcon = (color: string, size: number = 28) => {
+  const iconWidth = size
+  const iconHeight = size * 1.4
+  const iconSize: L.PointTuple = [iconWidth, iconHeight]
+  const iconAnchor: L.PointTuple = [size / 2, iconHeight]
+  
+  const pinSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 34" width="${iconWidth}" height="${iconHeight}">
+      <path fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" 
+        d="M12 0C5.373 0 0 5.373 0 12c0 9 12 22 12 22s12-13 12-22C24 5.373 18.627 0 12 0z"/>
+      <circle cx="12" cy="10" r="4" fill="rgba(255,255,255,0.9)"/>
+    </svg>
+  `
+  
+  return L.divIcon({
+    html: pinSvg,
+    className: 'pin-marker-icon',
+    iconSize,
+    iconAnchor,
+    popupAnchor: [0, -iconHeight] as L.PointTuple
+  })
+}
+
 // Add markers to map
 const addMarkers = () => {
   if (!map.value) return
@@ -749,17 +779,12 @@ const addMarkers = () => {
     const riskLevel = calculateRiskLevel(item.crimeRate)
     const color = getMarkerColor(riskLevel)
     
-    // Create custom marker with different sizes based on risk level
-    const markerRadius = riskLevel === 'high' ? 10 : riskLevel === 'medium' ? 8 : 6
-    const marker = L.circleMarker([item.latitude, item.longitude], {
-      radius: markerRadius,
-      fillColor: color,
-      color: '#ffffff',
-      weight: 2,
-      opacity: 1,
-      fillOpacity: 0.8,
-      interactive: true, // Ensure marker is clickable
-      bubblingMouseEvents: false // Prevent events from bubbling to boundary layer
+    // Create pin marker with different sizes based on risk level
+    const pinSize = riskLevel === 'high' ? 32 : riskLevel === 'medium' ? 28 : 24
+    const marker = L.marker([item.latitude, item.longitude], {
+      icon: createPinIcon(color, pinSize),
+      interactive: true,
+      bubblingMouseEvents: false
     })
     
     // Add pulse effect for ALL risk levels with different intensities
@@ -1078,9 +1103,23 @@ onMounted(() => {
   }
 }
 
-/* Enhanced marker styles */
-.leaflet-marker-icon {
-  animation: pulse-high 2s ease-in-out infinite;
+/* Pin marker styles - override Leaflet default */
+.pin-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.pin-marker-icon svg {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.pin-marker-icon svg:hover {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+
+/* Pin markers don't need pulse - the expanding circles provide that effect */
+.pin-marker-icon.leaflet-marker-icon {
+  animation: none;
 }
 
 /* Custom popup styles */
